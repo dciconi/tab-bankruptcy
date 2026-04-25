@@ -17,6 +17,59 @@
       <div class="header-badge">v1.0</div>
     </header>
 
+    <!-- Welcome (shown when ?welcome=1 OR setupComplete=false) -->
+    <section id="welcome-section" class="section hidden">
+      <div class="section-header">
+        <span class="section-icon">👋</span>
+        <div>
+          <h2>Welcome to Tab Bankruptcy</h2>
+          <p class="section-subtitle">Pick how you want to call the AI before declaring bankruptcy.</p>
+        </div>
+      </div>
+      <div class="welcome-body">
+        <p class="welcome-note">Choose a provider in the AI Provider section below. When you're ready, finish setup.</p>
+        <button id="btn-finish-setup" class="btn btn-primary" disabled>Finish Setup</button>
+        <p id="finish-setup-hint" class="hint">Sign in to Puter or add at least one BYOK key to enable.</p>
+      </div>
+    </section>
+
+    <!-- AI Provider -->
+    <section id="provider-section" class="section">
+      <div class="section-header">
+        <span class="section-icon">🤖</span>
+        <div>
+          <h2>AI Provider</h2>
+          <p class="section-subtitle">Default is Puter (sign in once, pay-as-you-go). Power users can BYOK.</p>
+        </div>
+      </div>
+
+      <div class="provider-radio-row">
+        <label><input type="radio" name="provider" value="puter" checked /> <span>Puter (recommended)</span></label>
+        <label><input type="radio" name="provider" value="byok" /> <span>Bring your own key (BYOK)</span></label>
+      </div>
+
+      <!-- Puter subsection -->
+      <div id="puter-config" class="provider-subsection">
+        <div class="puter-status">
+          <span id="puter-status-text">Checking sign-in…</span>
+          <button id="btn-puter-signin" class="btn btn-primary">Sign in to Puter</button>
+          <button id="btn-puter-signout" class="btn btn-secondary hidden">Sign out</button>
+        </div>
+        <label class="select-row">
+          <span class="select-title">Default model</span>
+          <select id="puter-model"></select>
+        </label>
+        <button id="btn-puter-test" class="btn btn-secondary">Test connection</button>
+        <span id="puter-test-result" class="test-result"></span>
+      </div>
+
+      <!-- BYOK subsection -->
+      <div id="byok-config" class="provider-subsection hidden">
+        <p class="hint">Keys never leave this device.</p>
+        <div id="byok-cards"></div>
+      </div>
+    </section>
+
     <!-- Custom Prompt -->
     <section class="section">
       <div class="section-header">
@@ -99,6 +152,7 @@
     </footer>
   </div>
 
+  <script src="lib/puter.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

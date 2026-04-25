@@ -117,3 +117,29 @@ function openAllTabs(list) {
   const tabs = list.tabs || [];
   tabs.forEach((t) => chrome.tabs.create({ url: t.url || t }));
 }
+
+// --- Tests added in v2: HTML presence checks (independent of jest, just plain assert) ---
+const _v2_assert = require('assert');
+const _v2_fs = require('fs');
+
+// HTML contains the new welcome and provider sections
+{
+  const html = _v2_fs.readFileSync('options.html', 'utf8');
+  _v2_assert.ok(html.includes('id="welcome-section"'), 'options.html missing welcome-section');
+  _v2_assert.ok(html.includes('id="provider-section"'), 'options.html missing provider-section');
+  _v2_assert.ok(html.includes('id="puter-config"'), 'options.html missing puter-config');
+  _v2_assert.ok(html.includes('id="byok-config"'), 'options.html missing byok-config');
+  _v2_assert.ok(html.includes('id="byok-cards"'), 'options.html missing byok-cards container');
+  _v2_assert.ok(html.includes('id="btn-finish-setup"'), 'options.html missing finish setup button');
+  console.log('options HTML structure ok');
+}
+
+// Puter SDK script tag is present and loaded BEFORE options.js
+{
+  const html = _v2_fs.readFileSync('options.html', 'utf8');
+  const puterIdx = html.indexOf('lib/puter.js');
+  const optionsIdx = html.indexOf('src="options.js"');
+  _v2_assert.ok(puterIdx !== -1, 'lib/puter.js not loaded in options.html');
+  _v2_assert.ok(puterIdx < optionsIdx, 'lib/puter.js must load BEFORE options.js');
+  console.log('options Puter script ordering ok');
+}
