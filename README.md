@@ -88,9 +88,7 @@ tab-bankruptcy/
 ├── options.test.js
 ├── lib/
 │   ├── audio.js           # playClick, playNuke, playKeep, playSave, playCompletion
-│   ├── audio.test.js
-│   ├── storage.js         # saveReadingList, getReadingLists, deleteReadingList
-│   └── storage.test.js
+│   └── audio.test.js
 ├── assets/icons/
 │   ├── icon48.png
 │   └── icon128.png
