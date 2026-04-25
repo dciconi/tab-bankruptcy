@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Bankruptcy",
+  "version": "1.0.0",
+  "description": "One-click AI clustering and triage for tab bankruptcy.",
+  "permissions": ["tabs", "storage", "tabGroups", "alarms", "readingList"],
+  "host_permissions": ["https://autoqa.teachx.ai/*"],
+  "action": {
+    "default_icon": {
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' https://autoqa.teachx.ai;"
+  }
+}

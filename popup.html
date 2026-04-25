@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Bankruptcy</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Idle View -->
+    <section id="view-idle" class="view active">
+      <div id="particles-container" class="particles-container" aria-hidden="true"></div>
+      <div class="idle-hero">
+        <header class="header">
+          <div class="mascot-wrap">
+            <div class="mascot">🪦</div>
+            <div class="mascot-glow"></div>
+          </div>
+          <h1>Tab Bankruptcy</h1>
+          <p class="tagline">Declare freedom from tab debt</p>
+        </header>
+
+        <div class="stats">
+          <div class="tab-count">
+            <span id="idle-tab-count">0</span>
+            <span class="label">tabs open</span>
+            <span id="focus-tax" class="focus-tax"></span>
+          </div>
+          <div class="debt-badge">TAB DEBT</div>
+        </div>
+
+        <button id="btn-declare" class="btn-primary">
+          <span class="btn-text">Declare Bankruptcy</span>
+          <span class="btn-icon">💥</span>
+        </button>
+
+        <p class="hint">We'll cluster your tabs and help you triage</p>
+      </div>
+    </section>
+
+    <!-- Loading View -->
+    <section id="view-loading" class="view hidden">
+      <div class="loading-content">
+        <div class="mascot-wrap">
+          <div class="mascot">🪦</div>
+          <div class="gavel">⚖️</div>
+        </div>
+        <div class="skeleton-container" aria-label="Loading clusters…">
+          <div class="skeleton-card"><div class="skeleton-line w-60"></div><div class="skeleton-line w-40"></div></div>
+          <div class="skeleton-card"><div class="skeleton-line w-75"></div><div class="skeleton-line w-30"></div></div>
+          <div class="skeleton-card"><div class="skeleton-line w-50"></div><div class="skeleton-line w-55"></div></div>
+        </div>
+        <p id="loading-message" class="loading-message">Scanning your digital hoarding…</p>
+        <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+        <div class="loading-sub">The court is reviewing your tab debt…</div>
+      </div>
+    </section>
+
+    <!-- Triage View -->
+    <section id="view-triage" class="view hidden">
+      <header class="header-small">
+        <h2>Clusters Found</h2>
+        <span id="triage-tab-count" class="badge">0 tabs</span>
+        <button id="btn-done" class="btn-done">Done</button>
+      </header>
+      <div id="clusters-container" class="clusters-container"></div>
+    </section>
+
+    <!-- Completion View -->
+    <section id="view-completion" class="view hidden">
+      <div class="completion-content">
+        <div class="seal">🏆</div>
+        <h2 class="completion-title">You're Debt Free!</h2>
+        <p class="completion-summary">Freed <span id="stat-total">0</span> tabs into focused clusters. Clean slate! 🎊</p>
+        <div class="stats-summary">
+          <div class="stat stat-kept"><span class="stat-icon">✅</span><span id="stat-kept" class="stat-value">0</span><label>Kept</label></div>
+          <div class="stat stat-saved"><span class="stat-icon">📖</span><span id="stat-saved" class="stat-value">0</span><label>Saved</label></div>
+          <div class="stat stat-nuked"><span class="stat-icon">💥</span><span id="stat-nuked" class="stat-value">0</span><label>Nuked</label></div>
+        </div>
+        <div id="nuked-list" class="nuked-list" hidden></div>
+        <div id="confetti-container"></div>
+        <div class="completion-actions">
+          <button id="btn-close" class="btn btn-primary">✨ Done</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error View -->
+    <section id="view-error" class="view hidden">
+      <div class="error-content">
+        <div class="error-icon">⚠️</div>
+        <h2>Something went wrong</h2>
+        <p id="error-message">Grok unavailable. Try again?</p>
+        <button id="btn-retry" class="btn-primary">Retry</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
