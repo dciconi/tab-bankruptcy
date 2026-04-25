@@ -8,6 +8,18 @@
 </head>
 <body>
   <div id="app">
+    <!-- Setup Required View (shown when settings.setupComplete is false) -->
+    <section id="view-setup-required" class="view hidden">
+      <div class="setup-required-content">
+        <div class="mascot-wrap">
+          <div class="mascot">⚖️</div>
+        </div>
+        <h2>Set up Tab Bankruptcy first</h2>
+        <p>Choose how to talk to your AI before declaring bankruptcy on your tabs.</p>
+        <button id="btn-open-setup" class="btn-primary">Open Settings</button>
+      </div>
+    </section>
+
     <!-- Idle View -->
     <section id="view-idle" class="view active">
       <div id="particles-container" class="particles-container" aria-hidden="true"></div>
@@ -91,12 +103,17 @@
       <div class="error-content">
         <div class="error-icon">⚠️</div>
         <h2>Something went wrong</h2>
-        <p id="error-message">Grok unavailable. Try again?</p>
-        <button id="btn-retry" class="btn-primary">Retry</button>
+        <p id="error-message">Try again?</p>
+        <div id="error-actions" class="error-actions">
+          <button id="btn-retry" class="btn-primary">Retry</button>
+          <button id="btn-open-settings" class="btn-secondary hidden">Open Settings</button>
+          <button id="btn-open-puter-dashboard" class="btn-secondary hidden">Open Puter Dashboard</button>
+        </div>
       </div>
     </section>
   </div>
 
+  <script src="lib/puter.js"></script>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

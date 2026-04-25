@@ -172,4 +172,39 @@ describe('Phase 3: Reliability (error/warning/resume)', () => {
   });
 });
 
+// --- Test: popup.html includes the new setup-required view ---
+describe('popup.html setup-required view', () => {
+  it('has setup-required view', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('view-setup-required'), 'popup.html has setup-required view');
+  });
+  it('has open-setup button', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('btn-open-setup'), 'popup.html has open-setup button');
+  });
+  it('has Puter dashboard button', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('btn-open-puter-dashboard'), 'popup.html has Puter dashboard button');
+  });
+  it('loads vendored Puter SDK', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('lib/puter.js'), 'popup.html loads vendored Puter SDK');
+  });
+});
+
+// --- Test: lib/puter.js script tag loads BEFORE popup.js module ---
+describe('popup.html script ordering', () => {
+  it('lib/puter.js loads BEFORE popup.js', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    const puterIdx = popupHtml.indexOf('lib/puter.js');
+    const popupIdx = popupHtml.indexOf('src="popup.js"');
+    assertTrue(puterIdx > 0 && puterIdx < popupIdx, 'lib/puter.js loads BEFORE popup.js');
+  });
+});
+
 console.log('\nAll tests completed.');
