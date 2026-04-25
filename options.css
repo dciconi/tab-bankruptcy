@@ -863,5 +863,103 @@ body {
   font-size: 12px;
   color: var(--text-subtle);
 }
-tle);
+
+/* Welcome section */
+#welcome-section.hidden { display: none; }
+.welcome-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
+
+/* Provider radio row */
+.provider-radio-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+.provider-radio-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+/* Provider subsections */
+.provider-subsection.hidden { display: none; }
+.provider-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.puter-status {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.test-result {
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+/* BYOK cards */
+.byok-card {
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.byok-card-header { display: flex; align-items: center; gap: 8px; }
+.byok-active { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.byok-active-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  background: rgba(0, 200, 100, 0.15);
+  color: #50d090;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: none;
+}
+.byok-active input:checked ~ .byok-active-tag { display: inline-block; }
+.byok-key-row, .byok-model-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.byok-key-row span:first-child, .byok-model-row span:first-child { width: 64px; opacity: 0.7; }
+.byok-key-input {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+.byok-key {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.2);
+  color: inherit;
+  font-family: monospace;
+}
+.btn-text {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+.byok-actions { display: flex; align-items: center; gap: 8px; }
+
+/* Light mode adjustments */
+body.light-mode .provider-subsection { background: rgba(0,0,0,0.03); }
+body.light-mode .byok-card { border-color: rgba(0,0,0,0.1); }
+body.light-mode .byok-key { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
