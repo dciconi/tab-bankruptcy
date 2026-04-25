@@ -1,5 +1,3 @@
-const PROXY_URL = 'https://autoqa.teachx.ai/hackathon/preview/chapter-11/cluster';
-
 const SESSION_KEY = 'tb_cluster_state';
 const LAST_TABS_KEY = 'tb_last_tab_ids';
 const PROCESSED_KEY = 'tb_processed_tab_ids';
@@ -11,11 +9,16 @@ function tabSignature(tabIds) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[background] onMessage:', message, 'from:', sender?.tab?.id);
-  if (message.action === 'cluster') {
-    console.log('[background] cluster action received — calling handleClusterRequest');
-    handleClusterRequest()
+  if (message.action === 'getTabsForCluster') {
+    handleGetTabsForCluster()
+      .then(result => sendResponse(result))
+      .catch(err => sendResponse({ok: false, error: err.message}));
+    return true;
+  }
+  if (message.action === 'commitClusters') {
+    handleCommitClusters(message.clusters, message.sig)
       .then(() => sendResponse({ok: true}))
-      .catch(err => { console.error('[background] cluster error:', err); sendResponse({ok: false, error: err.message}); });
+      .catch(err => sendResponse({ok: false, error: err.message}));
     return true;
   }
   if (message.action === 'resume') {
@@ -101,102 +104,49 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function fetchWithRetry(url, opts, retries = 3, backoff = 500) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, opts);
-      if (res.ok) return res;
-      if (res.status >= 500 && i < retries - 1) {
-        await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
-        continue;
-      }
-      throw new Error(`Proxy returned ${res.status}`);
-    } catch (err) {
-      if (i === retries - 1) throw err;
-      await new Promise(r => setTimeout(r, backoff * Math.pow(2, i)));
-    }
-  }
-}
-
-async function handleClusterRequest() {
-  console.log('[background] handleClusterRequest() start');
+async function handleGetTabsForCluster() {
   const allTabs = await chrome.tabs.query({});
-  const selfUrl = chrome.runtime.getURL(''); // e.g. chrome-extension://<id>/
+  const selfUrl = chrome.runtime.getURL('');
   let filtered = allTabs.filter(t =>
     t.id && typeof t.id === 'number' &&
     !t.pinned &&
     !t.url.startsWith('chrome://') &&
     !t.url.startsWith('about:') &&
-    !(t.url && t.url.startsWith(selfUrl)) // exclude this extension's own tab
+    !(t.url && t.url.startsWith(selfUrl))
   );
-  console.log('[background] tabs: all=', allTabs.length, 'filtered=', filtered.length);
 
-  // Load processed tab IDs and exclude them (already nuked/saved/kept)
   const { [PROCESSED_KEY]: processed = [] } = await chrome.storage.session.get(PROCESSED_KEY);
   const processedSet = new Set(processed);
   filtered = filtered.filter(t => !processedSet.has(t.id));
-  console.log('[background] after excluding processed:', filtered.length);
 
-  // Compute current signature
   const currentIds = filtered.map(t => t.id);
   const currentSig = tabSignature(currentIds);
 
-  // Load last signature
   const { [LAST_TABS_KEY]: lastSig } = await chrome.storage.session.get(LAST_TABS_KEY);
   const cached = await chrome.storage.session.get(SESSION_KEY);
   const hasCachedClusters = cached[SESSION_KEY]?.type === 'clusters' && (cached[SESSION_KEY]?.clusters?.length ?? 0) > 0;
 
-  // If same tabs as last run AND we have cached clusters → skip API
   if (currentSig === lastSig && hasCachedClusters) {
-    console.log('[background] tabs unchanged, returning cached clusters');
-    chrome.runtime.sendMessage(cached[SESSION_KEY]);
-    return;
+    return { ok: true, cached: true, payload: cached[SESSION_KEY] };
   }
 
-  const isLarge = filtered.length > 100;
-  console.log('[background] isLarge session:', isLarge);
+  // Whitelist tab fields the LLM should see (used to be Pydantic-driven; now LLM-driven).
+  const allowed = ['id', 'title', 'url'];
+  const sanitized = filtered.map(t => {
+    const o = {};
+    for (const k of allowed) if (k in t) o[k] = t[k];
+    return o;
+  });
 
-  chrome.alarms.create('tb_sw_keepalive', {periodInMinutes: 0.5});
-  console.log('[background] keepalive alarm created');
+  return { ok: true, cached: false, tabs: sanitized, sig: currentSig };
+}
 
-  try {
-    await chrome.storage.session.set({[SESSION_KEY]: {type: 'clusters', clusters: [], pending: true}});
-    console.log('[background] session state set (pending), fetching proxy:', PROXY_URL);
-
-    // Sanitize tabs to only include fields TabItem model accepts (prevents 422)
-    const allowed = ['id','title','url','lastAccessed','status','active','groupId','windowId','pinned','audible','discarded','index','highlighted'];
-    const sanitized = filtered.map(t => {
-      const o = {};
-      for (const k of allowed) if (k in t) o[k] = t[k];
-      // Coerce float timestamps to int (Pydantic rejects int_from_float)
-      if (typeof o.lastAccessed === 'number') o.lastAccessed = Math.floor(o.lastAccessed);
-      return o;
-    });
-    console.log('[background] sending', sanitized.length, 'tabs to proxy, sample:', JSON.stringify(sanitized[0]));
-
-    const res = await fetchWithRetry(PROXY_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({tabs: sanitized, chromeId: chrome.runtime.id})
-    });
-    console.log('[background] proxy response status:', res.status);
-    const {clusters} = await res.json();
-    console.log('[background] clusters from proxy:', clusters?.length || 0);
-
-    const payload = {type: 'clusters', clusters, ...(isLarge && {warning: 'Large session — processing may take a moment'})};
-    await chrome.storage.session.set({[SESSION_KEY]: payload, [LAST_TABS_KEY]: currentSig});
-    chrome.runtime.sendMessage(payload);
-
-    // Create native Chrome tab groups (background context is more reliable)
-    createTabGroups(clusters).catch(err => console.warn('[background] tab grouping failed:', err));
-  } catch (err) {
-    console.error('Tab Bankruptcy clustering failed:', err);
-    const payload = {type: 'error', message: err.message};
-    await chrome.storage.session.set({[SESSION_KEY]: payload});
-    chrome.runtime.sendMessage(payload);
-  } finally {
-    chrome.alarms.clear('tb_sw_keepalive');
-  }
+async function handleCommitClusters(clusters, sig) {
+  if (!Array.isArray(clusters)) throw new Error('clusters must be an array');
+  const payload = { type: 'clusters', clusters };
+  await chrome.storage.session.set({ [SESSION_KEY]: payload, [LAST_TABS_KEY]: sig });
+  // Tab grouping is best-effort; never fail the commit on a grouping error.
+  createTabGroups(clusters).catch(err => console.warn('[background] tab grouping failed:', err));
 }
 
 async function markProcessed(tabIds) {
@@ -260,4 +210,16 @@ chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url });
 });
 
-if (typeof module !== 'undefined') module.exports = {handleClusterRequest, handleKeep, handleNuke, handleSave, fetchWithRetry, markProcessed, tabSignature, createTabGroups};
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('options.html?welcome=1') });
+  }
+  // REMOVE-IN-V3: v1->v2 forced re-setup. v1 had no provider/key/Puter config,
+  // so existing setupComplete (if any) is meaningless. Treating users as fresh
+  // install is correct. See docs/maintenance/v2-migration.md for removal criteria.
+  if (details.reason === 'update') {
+    chrome.storage.sync.set({ setupComplete: false });
+  }
+});
+
+if (typeof module !== 'undefined') module.exports = {handleGetTabsForCluster, handleCommitClusters, handleKeep, handleNuke, handleSave, markProcessed, tabSignature, createTabGroups};
