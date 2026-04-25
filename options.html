@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Bankruptcy — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="mascot">⚖️</div>
+      <div class="header-text">
+        <h1>Settings</h1>
+        <p class="tagline">Configure your bankruptcy preferences</p>
+      </div>
+      <div class="header-badge">v1.0</div>
+    </header>
+
+    <!-- Custom Prompt -->
+    <section class="section">
+      <div class="section-header">
+        <span class="section-icon">✍️</span>
+        <div>
+          <h2>Custom Prompt</h2>
+          <p class="section-subtitle">Personalize how clusters get their witty names</p>
+        </div>
+      </div>
+      <div class="prompt-wrapper">
+        <textarea id="custom-prompt" placeholder="Enter custom system prompt..." maxlength="1000"></textarea>
+        <div class="prompt-footer">
+          <span id="char-count" class="char-count">0 / 1000</span>
+          <div class="btn-row">
+            <button id="btn-save-prompt" class="btn btn-primary">Save Prompt</button>
+            <button id="btn-reset-prompt" class="btn btn-secondary">Reset to Default</button>
+          </div>
+        </div>
+      </div>
+      <details class="prompt-preview">
+        <summary>Preview effective prompt</summary>
+        <div class="preview-box" id="prompt-preview-box"></div>
+      </details>
+    </section>
+
+    <!-- Sound Settings -->
+    <section class="section">
+      <div class="section-header">
+        <span class="section-icon">🔊</span>
+        <div>
+          <h2>Sound</h2>
+          <p class="section-subtitle">Audio feedback preferences</p>
+        </div>
+      </div>
+      <label class="toggle-row">
+        <div class="toggle-label">
+          <span class="toggle-title">Mute all sounds</span>
+          <span class="toggle-desc">Disable confetti pops and UI chimes</span>
+        </div>
+        <div class="toggle-control">
+          <input type="checkbox" id="mute-toggle">
+          <span class="toggle-switch"></span>
+        </div>
+      </label>
+    </section>
+
+    <!-- Appearance -->
+    <section class="section">
+      <div class="section-header">
+        <span class="section-icon">🎨</span>
+        <div>
+          <h2>Appearance</h2>
+          <p class="section-subtitle">Theme and display preferences</p>
+        </div>
+      </div>
+      <label class="select-row">
+        <div class="select-label">
+          <span class="select-title">Theme</span>
+          <span class="select-desc">Choose appearance or match system</span>
+        </div>
+        <select id="theme-select">
+          <option value="system">System</option>
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+        </select>
+      </label>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span class="footer-brand">Tab Bankruptcy</span>
+        <span class="footer-sep">·</span>
+        <span class="footer-link" id="footer-version">v1.0</span>
+        <span class="footer-sep">·</span>
+        <a href="#" class="footer-link" id="footer-help">Help</a>
+        <span class="footer-sep">·</span>
+        <a href="#" class="footer-link" id="footer-clear">Clear Data</a>
+      </div>
+      <p class="footer-note">Made with ⚖️ for delightful tab cleanup.</p>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
