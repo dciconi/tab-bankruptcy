@@ -2,8 +2,17 @@
 // State machine: Idle → Loading → Triage → Completion
 
 import { playNuke, playKeep, playSave, playCompletion, loadMute } from './lib/audio.js';
+import {
+  clusterTabs,
+  PUTER_DASHBOARD_URL,
+  ApiKeyMissingError,
+  PuterNotSignedIn,
+  PuterOutOfCredits,
+  ClusterParseError,
+  LlmError
+} from './lib/llm/index.js';
 
-const STATES = { IDLE: 'idle', LOADING: 'loading', TRIAGE: 'triage', COMPLETION: 'completion', ERROR: 'error' };
+const STATES = { SETUP_REQUIRED: 'setup-required', IDLE: 'idle', LOADING: 'loading', TRIAGE: 'triage', COMPLETION: 'completion', ERROR: 'error' };
 
 let currentState = STATES.IDLE;
 let clusters = [];
@@ -133,11 +142,75 @@ function startLoading() {
     if (progEl) progEl.style.width = `${Math.min(100, (i + 1) * 25)}%`;
     i++;
   }, 1200);
-  console.log('[popup] sending {action: "cluster"} to background');
-  // Send cluster request to background
-  chrome.runtime.sendMessage({ action: 'cluster' }, (resp) => {
-    console.log('[popup] cluster request response:', resp);
+  runClusterFlow().catch(err => {
+    console.error('[popup] cluster flow error:', err);
+    handleClusterError(err);
   });
+}
+
+async function runClusterFlow() {
+  // 1. Ask background for tabs (or cached payload)
+  const tabResp = await new Promise(resolve => {
+    chrome.runtime.sendMessage({ action: 'getTabsForCluster' }, resolve);
+  });
+  if (!tabResp?.ok) throw new Error(tabResp?.error || 'Failed to get tabs');
+  if (tabResp.cached) {
+    renderClusters(tabResp.payload);
+    return;
+  }
+  // 2. Load merged settings (sync + local)
+  const sync = await new Promise(r => chrome.storage.sync.get(null, r));
+  const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+  const settings = {
+    provider: sync.provider || 'puter',
+    puterModel: sync.puterModel || 'x-ai/grok-3-mini',
+    byokProvider: sync.byokProvider || 'xai',
+    byokModels: sync.byokModels || { xai:'grok-3-mini', openai:'gpt-4o-mini', anthropic:'claude-haiku-4-5-20251001', google:'gemini-2.5-flash' },
+    customPrompt: sync.customPrompt || '',
+    apiKeys: local.apiKeys || {}
+  };
+  // 3. Run the LLM
+  const clusters = await clusterTabs(tabResp.tabs, settings);
+  // 4. Commit clusters back to background
+  await new Promise(resolve => {
+    chrome.runtime.sendMessage(
+      { action: 'commitClusters', clusters, sig: tabResp.sig },
+      resolve
+    );
+  });
+  // 5. Render
+  renderClusters({ type: 'clusters', clusters });
+}
+
+function handleClusterError(err) {
+  const provider = err?.provider || '';
+  if (err instanceof PuterNotSignedIn) {
+    showError({
+      message: 'You need to sign in to Puter to cluster tabs. Set it up in Settings, or switch to your own API key.',
+      showSettings: true
+    });
+  } else if (err instanceof PuterOutOfCredits) {
+    showError({
+      message: "You're out of Puter credits. Top up at puter.com/dashboard, or switch to BYOK in Settings.",
+      showPuterDashboard: true,
+      showSettings: true
+    });
+  } else if (err instanceof ApiKeyMissingError) {
+    showError({
+      message: `No API key for ${provider}. Add one in Settings.`,
+      showSettings: true
+    });
+  } else if (err instanceof LlmError && err.kind === 'auth') {
+    showError({ message: err.message + '. Update it in Settings.', showSettings: true });
+  } else if (err instanceof LlmError && err.kind === 'rate_limit') {
+    showError({ message: err.message + '. Try again in a moment.' });
+  } else if (err instanceof LlmError && err.kind === 'network') {
+    showError({ message: `Couldn't reach the model. Retry?` });
+  } else if (err instanceof ClusterParseError) {
+    showError({ message: 'Model returned an unexpected response. Try again?' });
+  } else {
+    showError({ message: err?.message || 'Unknown error' });
+  }
 }
 
 function renderClusterCard(cluster) {
@@ -559,30 +632,25 @@ function triggerActionOnCard(card, action) {
   if (btn) btn.click();
 }
 
-function showError(msg) {
+function showError(opts) {
   if (loadingInterval) {
     clearInterval(loadingInterval);
     loadingInterval = null;
   }
+  const message = typeof opts === 'string' ? opts : (opts?.message || 'Something went wrong.');
+  const showSettings = typeof opts === 'object' && !!opts?.showSettings;
+  const showPuterDashboard = typeof opts === 'object' && !!opts?.showPuterDashboard;
   const errEl = document.getElementById('error-message');
-  if (errEl) errEl.textContent = msg || 'Grok unavailable. Try again?';
+  if (errEl) errEl.textContent = message;
+  const settingsBtn = document.getElementById('btn-open-settings');
+  const dashBtn = document.getElementById('btn-open-puter-dashboard');
+  if (settingsBtn) settingsBtn.classList.toggle('hidden', !showSettings);
+  if (dashBtn) dashBtn.classList.toggle('hidden', !showPuterDashboard);
   setState(STATES.ERROR);
 }
 
 function handleMessage(msg) {
-  console.log('[popup] handleMessage received:', msg);
-  if (msg.type === 'clusters') {
-    console.log('[popup] clusters received:', msg.clusters?.length || 0, 'clusters');
-    if (msg.warning) showWarning(msg.warning);
-    renderClusters(msg);
-  } else if (msg.type === 'error') {
-    console.error('[popup] error from background:', msg.message);
-    showError(msg.message);
-  } else if (msg.type === 'warning') {
-    console.warn('[popup] warning:', msg.message);
-    showWarning(msg.message);
-  } else if (msg.type === 'actionDone') {
-    console.log('[popup] actionDone, resolvedClusters:', resolvedClusters, 'total:', totalClusters);
+  if (msg?.type === 'actionDone') {
     if (resolvedClusters >= totalClusters) {
       triggerConfetti();
       showCompletion();
@@ -651,9 +719,21 @@ async function init() {
     console.log('[popup] resume response:', resp);
   });
 
+  // Check setup gate
+  const setupCheck = await new Promise(r => chrome.storage.sync.get(['setupComplete'], r));
+  if (!setupCheck.setupComplete) {
+    setState(STATES.SETUP_REQUIRED);
+    const btnOpenSetup = document.getElementById('btn-open-setup');
+    if (btnOpenSetup) {
+      btnOpenSetup.addEventListener('click', () => {
+        chrome.runtime.openOptionsPage();
+      });
+    }
+    return; // skip idle wiring; user must complete setup first
+  }
+
   // Idle
   updateIdleTabCount();
-  console.log('[popup] setState -> IDLE');
   setState(STATES.IDLE);
 
   // Declare Bankruptcy (with ARIA)
@@ -692,6 +772,19 @@ async function init() {
     btnRetry.addEventListener('click', () => {
       setState(STATES.IDLE);
       startLoading();
+    });
+  }
+
+  const btnOpenSettings = document.getElementById('btn-open-settings');
+  if (btnOpenSettings) {
+    btnOpenSettings.addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  }
+  const btnOpenDash = document.getElementById('btn-open-puter-dashboard');
+  if (btnOpenDash) {
+    btnOpenDash.addEventListener('click', () => {
+      chrome.tabs.create({ url: PUTER_DASHBOARD_URL });
     });
   }
 
