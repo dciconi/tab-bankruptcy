@@ -332,6 +332,6 @@ Hackathon project — internal use.
 
 ---
 
-**Version:** 2.0.0
+**Version:** 1.99.0 (`version_name`: 2.0.0 beta)
 **Manifest:** MV3
 **Last updated:** 2026-04-26
