@@ -1161,6 +1161,34 @@ body.light-mode .byok-form-row select { background: rgba(0,0,0,0.04); border-col
 #btn-byok-add { align-self: flex-start; margin-top: 8px; }
 #btn-byok-add.hidden { display: none; }
 
+/* Reset section */
+.reset-explainer {
+  font-size: 13px;
+  margin: 6px 0 4px 0;
+  opacity: 0.85;
+}
+.reset-list {
+  margin: 4px 0 8px 18px;
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.6;
+}
+.reset-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.btn-danger {
+  background: rgba(239, 68, 68, 0.18);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.28);
+}
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Native dropdown option contrast — rgba backgrounds are ignored by OS pickers */
 .byok-form-row select option,
 #puter-model option {

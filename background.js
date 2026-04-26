@@ -214,12 +214,6 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('options.html?welcome=1') });
   }
-  // REMOVE-IN-V3: v1->v2 forced re-setup. v1 had no provider/key/Puter config,
-  // so existing setupComplete (if any) is meaningless. Treating users as fresh
-  // install is correct. See docs/maintenance/v2-migration.md for removal criteria.
-  if (details.reason === 'update') {
-    chrome.storage.sync.set({ setupComplete: false });
-  }
 });
 
 if (typeof module !== 'undefined') module.exports = {handleGetTabsForCluster, handleCommitClusters, handleKeep, handleNuke, handleSave, markProcessed, tabSignature, createTabGroups};

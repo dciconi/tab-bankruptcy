@@ -136,27 +136,17 @@ const {handleKeep, handleNuke, handleSave, markProcessed, tabSignature, createTa
     assert.strictEqual(sessionStore.tb_last_tab_ids, 'sig-abc');
   }
 
-  // --- Test: onInstalled with reason='update' flips setupComplete to false ---
+  // --- Test: onInstalled with reason='install' opens options with welcome=1 ---
   {
     // Stash the listener registered by background.js
     let registeredListener = null;
-    const origAddListener = chrome.runtime.onInstalled.addListener;
     chrome.runtime.onInstalled = { addListener: (fn) => { registeredListener = fn; } };
     // Re-require background.js to re-register
     delete require.cache[require.resolve('./background.js')];
     require('./background.js');
     assert.ok(registeredListener, 'onInstalled listener registered');
 
-    // Simulate update
-    let setCalls = [];
-    chrome.storage.sync = {
-      set: (obj) => { setCalls.push(obj); return Promise.resolve(); }
-    };
-    registeredListener({ reason: 'update' });
-    assert.deepStrictEqual(setCalls[0], { setupComplete: false });
-
     // Simulate install (should open options with welcome=1)
-    setCalls = [];
     let createdTabs = [];
     chrome.tabs.create = (opts) => { createdTabs.push(opts); return Promise.resolve(); };
     registeredListener({ reason: 'install' });
