@@ -189,10 +189,44 @@ describe('popup.html setup-required view', () => {
     const popupHtml = fs.readFileSync('popup.html', 'utf8');
     assertTrue(popupHtml.includes('btn-open-puter-dashboard'), 'popup.html has Puter dashboard button');
   });
+  it('has addressable error title and icon for provider-specific copy', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('id="error-title"'), 'popup.html has error title');
+    assertTrue(popupHtml.includes('id="error-icon"'), 'popup.html has error icon');
+  });
   it('loads vendored Puter SDK', () => {
     const fs = require('fs');
     const popupHtml = fs.readFileSync('popup.html', 'utf8');
     assertTrue(popupHtml.includes('lib/puter.js'), 'popup.html loads vendored Puter SDK');
+  });
+});
+
+describe('Puter credit error copy', () => {
+  it('uses a specific, recoverable title for empty Puter credits', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes("title: 'Puter credits are empty'"), 'Puter credit error has specific title');
+    assertTrue(popupJs.includes("icon: '💳'"), 'Puter credit error has billing icon');
+  });
+});
+
+describe('Completion nuke undo', () => {
+  it('stores nuked cluster tab IDs and URLs for completion-screen undo', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('tabIds: [...ids]'), 'nuked cluster stores tab IDs');
+    assertTrue(popupJs.includes('urls: [...urls]'), 'nuked cluster stores URLs');
+  });
+  it('completion-screen undo calls the real undo path instead of only removing the row', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes("await doUndo('nuke', item.tabIds, null, item.urls)"), 'completion undo calls doUndo with nuke payload');
+  });
+  it('reopens nuked tabs in the background so the extension keeps focus', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('chrome.tabs.create({ url, active: false })'), 'nuke undo opens restored tabs inactive');
   });
 });
 

@@ -105,14 +105,14 @@
 
     <!-- Error View -->
     <section id="view-error" class="view hidden">
-      <div class="error-content">
-        <div class="error-icon">⚠️</div>
-        <h2>Something went wrong</h2>
+      <div class="error-content" role="alert" aria-labelledby="error-title">
+        <div id="error-icon" class="error-icon" aria-hidden="true">⚠️</div>
+        <h2 id="error-title">Something went wrong</h2>
         <p id="error-message">Try again?</p>
         <div id="error-actions" class="error-actions">
-          <button id="btn-retry" class="btn-primary">Retry</button>
+          <button id="btn-retry" class="btn-primary">Try again</button>
           <button id="btn-open-settings" class="btn-secondary hidden">Open Settings</button>
-          <button id="btn-open-puter-dashboard" class="btn-secondary hidden">Open Puter Dashboard</button>
+          <button id="btn-open-puter-dashboard" class="btn-secondary hidden">Top up Puter</button>
         </div>
       </div>
     </section>
