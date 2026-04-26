@@ -210,19 +210,17 @@
         </div>
       </div>
       <p class="reset-explainer">
-        Resetting will:
+        Resetting will wipe everything and return the extension to its first-run state:
       </p>
       <ul class="reset-list">
         <li>Delete every saved BYOK API key</li>
         <li>Sign you out of Puter</li>
-        <li>Clear your provider and model selections</li>
+        <li>Clear all preferences (provider, model, custom prompt, sound, theme)</li>
+        <li>Clear cached cluster state and processed-tab history</li>
         <li>Trigger the welcome / setup gate on next open</li>
       </ul>
-      <p class="reset-explainer">
-        Your custom prompt, sound, and theme preferences are kept.
-      </p>
       <div class="reset-actions">
-        <button id="btn-reset" class="btn btn-danger">Reset AI settings</button>
+        <button id="btn-reset" class="btn btn-danger">Reset everything</button>
         <span id="reset-result" class="test-result"></span>
       </div>
     </section>
