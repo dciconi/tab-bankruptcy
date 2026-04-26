@@ -965,3 +965,198 @@ body {
 body.light-mode .provider-subsection { background: rgba(0,0,0,0.03); }
 body.light-mode .byok-card { border-color: rgba(0,0,0,0.1); }
 body.light-mode .byok-key { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
+
+/* Puter About panel */
+.puter-about {
+  border-left: 3px solid rgba(120, 160, 240, 0.5);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: rgba(120, 160, 240, 0.06);
+  border-radius: 4px;
+}
+.puter-about h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+.puter-about p {
+  margin: 6px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+.puter-about a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+body.light-mode .puter-about { background: rgba(120, 160, 240, 0.08); }
+
+/* BYOK list (replaces the old per-provider cards) */
+.byok-intro h3 {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+}
+.byok-help {
+  margin: 4px 0 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+}
+.byok-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+.byok-empty {
+  padding: 18px;
+  border: 1px dashed rgba(255,255,255,0.15);
+  border-radius: 8px;
+  text-align: center;
+  opacity: 0.7;
+  font-size: 13px;
+}
+.byok-empty.hidden { display: none; }
+body.light-mode .byok-empty { border-color: rgba(0,0,0,0.15); }
+
+.byok-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+body.light-mode .byok-row { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.02); }
+
+.byok-row-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.btn-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+}
+.btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn-icon:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+body.light-mode .btn-icon { border-color: rgba(0,0,0,0.15); }
+body.light-mode .btn-icon:hover:not(:disabled) { background: rgba(0,0,0,0.05); }
+
+.byok-row-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.status-pill {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 13px;
+}
+.status-verified { background: rgba(0, 200, 100, 0.18); color: #50d090; }
+.status-failed   { background: rgba(220, 80, 80, 0.18); color: #ee7080; }
+.status-untested { background: rgba(180, 180, 180, 0.15); color: #a0a0a0; }
+.default-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(120, 160, 240, 0.18);
+  color: #8aa8e8;
+}
+
+.byok-row-body { min-width: 0; }
+.byok-row-label { font-weight: 600; font-size: 14px; }
+.byok-row-meta {
+  font-size: 12px;
+  opacity: 0.7;
+  font-family: monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.byok-row-error {
+  font-size: 12px;
+  color: #ee7080;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.byok-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.byok-row-result {
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+/* Inline Add/Edit form */
+.byok-form {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.byok-form.hidden { display: none; }
+body.light-mode .byok-form { border-color: rgba(0,0,0,0.15); background: rgba(0,0,0,0.03); }
+.byok-form h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+}
+.byok-form-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+.byok-form-row span:first-child { opacity: 0.75; font-size: 13px; }
+.byok-form-row input,
+.byok-form-row select {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.2);
+  color: inherit;
+  font-size: 13px;
+}
+.byok-form-row input[type="password"] { font-family: monospace; }
+body.light-mode .byok-form-row input,
+body.light-mode .byok-form-row select { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.15); }
+.byok-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+#btn-byok-add { align-self: flex-start; margin-top: 8px; }
+#btn-byok-add.hidden { display: none; }

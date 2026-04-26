@@ -8,10 +8,11 @@
   },
   "models": {
     "puter": {
-      "default": "x-ai/grok-4-1-fast-non-reasoning",
+      "default": "x-ai/grok-3-mini",
       "options": [
-        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
-        { "id": "x-ai/grok-4-1-fast-reasoning",     "label": "Grok 4.1 Fast (reasoning)" },
+        { "id": "x-ai/grok-3-mini",                 "label": "Grok 3 mini (default)" },
+        { "id": "grok-3",                           "label": "Grok 3" },
+        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning)" },
         { "id": "gpt-4o-mini",                      "label": "GPT-4o mini" },
         { "id": "claude-haiku-4-5",                 "label": "Claude Haiku 4.5" },
         { "id": "gemini-2.5-flash",                 "label": "Gemini 2.5 Flash" }
@@ -21,7 +22,9 @@
       "default": "grok-4-1-fast-non-reasoning",
       "options": [
         { "id": "grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
-        { "id": "grok-4-1-fast-reasoning",     "label": "Grok 4.1 Fast (reasoning)" }
+        { "id": "grok-4-1-fast-reasoning",     "label": "Grok 4.1 Fast (reasoning)" },
+        { "id": "grok-3-mini",                 "label": "Grok 3 mini" },
+        { "id": "grok-3",                      "label": "Grok 3" }
       ]
     },
     "openai": {
