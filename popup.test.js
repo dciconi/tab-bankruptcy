@@ -211,6 +211,25 @@ describe('Puter credit error copy', () => {
   });
 });
 
+describe('Completion nuke undo', () => {
+  it('stores nuked cluster tab IDs and URLs for completion-screen undo', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('tabIds: [...ids]'), 'nuked cluster stores tab IDs');
+    assertTrue(popupJs.includes('urls: [...urls]'), 'nuked cluster stores URLs');
+  });
+  it('completion-screen undo calls the real undo path instead of only removing the row', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes("await doUndo('nuke', item.tabIds, null, item.urls)"), 'completion undo calls doUndo with nuke payload');
+  });
+  it('reopens nuked tabs in the background so the extension keeps focus', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('chrome.tabs.create({ url, active: false })'), 'nuke undo opens restored tabs inactive');
+  });
+});
+
 // --- Test: lib/puter.js script tag loads BEFORE popup.js module ---
 describe('popup.html script ordering', () => {
   it('lib/puter.js loads BEFORE popup.js', () => {

@@ -24,7 +24,7 @@ let resolvedClusters = 0;
 let undoTimer = null;
 let lastAction = null;
 let lastTabIds = [];
-let nukedClusters = []; // track names of nuked clusters for completion list
+let nukedClusters = []; // track nuked cluster payloads for completion-screen undo
 let remainingTabs = 0; // tracks remaining tabs in triage view for live count update
 
 // Loading messages (escalating per task spec)
@@ -366,7 +366,15 @@ function renderClusterCard(cluster) {
   return div;
 }
 
-function handleAction(action, tabIds, cardEl) {
+async function getTabUrls(tabIds) {
+  if (!Array.isArray(tabIds) || !tabIds.length) return [];
+  const urls = await Promise.all(tabIds.map(id =>
+    chrome.tabs.get(id).then(t => t?.url).catch(() => null)
+  ));
+  return urls.filter(Boolean);
+}
+
+async function handleAction(action, tabIds, cardEl) {
   // Use only selected tabIds if granular selection is active
   let ids = tabIds;
   if (cardEl && cardEl.dataset.selectedIds) {
@@ -376,11 +384,8 @@ function handleAction(action, tabIds, cardEl) {
     } catch {}
   }
   if (!ids.length) return;
-  // Pre-fetch URLs so undo can restore tabs (especially for nuke)
-  if (cardEl && !cardEl.dataset.urls) {
-    Promise.all(ids.map(id => chrome.tabs.get(id).then(t => t?.url).catch(() => null)))
-      .then(urls => { cardEl.dataset.urls = JSON.stringify(urls.filter(Boolean)); });
-  }
+  const urls = (action === 'nuke' || action === 'save') ? await getTabUrls(ids) : [];
+  if (cardEl && urls.length) cardEl.dataset.urls = JSON.stringify(urls);
   // Update remaining tab count with animation
   remainingTabs = Math.max(0, remainingTabs - ids.length);
   const badge = document.getElementById('triage-tab-count');
@@ -399,13 +404,17 @@ function handleAction(action, tabIds, cardEl) {
   lastAction = action;
   lastTabIds = [...ids];
   if (undoTimer) clearTimeout(undoTimer);
-  showUndoToast(action, ids, cardEl);
+  showUndoToast(action, ids, cardEl, urls);
   // Send to background
   chrome.runtime.sendMessage({ action, tabIds: ids, listName: cardEl?.dataset?.clusterName, vibe: cardEl?.dataset?.vibe });
   // Optimistic UI
   updateStats(action, ids.length);
   if (action === 'nuke' && cardEl && cardEl.dataset.clusterName) {
-    nukedClusters.push(cardEl.dataset.clusterName);
+    nukedClusters.push({
+      name: cardEl.dataset.clusterName,
+      tabIds: [...ids],
+      urls: [...urls]
+    });
   }
   if (cardEl) {
     const cls = action === 'nuke' ? 'nuking' : 'removing';
@@ -416,7 +425,7 @@ function handleAction(action, tabIds, cardEl) {
   checkCompletion();
 }
 
-function showUndoToast(action, tabIds, cardEl) {
+function showUndoToast(action, tabIds, cardEl, urls = []) {
   let toast = document.getElementById('undo-toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -432,28 +441,25 @@ function showUndoToast(action, tabIds, cardEl) {
   const undoLink = document.getElementById('undo-link');
   if (undoLink) undoLink.onclick = (e) => {
     e.preventDefault();
-    doUndo(action, tabIds, cardEl);
+    doUndo(action, tabIds, cardEl, urls);
     toast.classList.add('hidden');
   };
 }
 
-async function doUndo(action, tabIds, cardEl) {
-  let urls = [];
+async function doUndo(action, tabIds, cardEl, fallbackUrls = []) {
+  let urls = Array.isArray(fallbackUrls) ? [...fallbackUrls] : [];
   // For nuke: restore tabs using pre-fetched URLs
-  if (action === 'nuke' && cardEl?.dataset?.urls) {
+  if (action === 'nuke' && urls.length === 0 && cardEl?.dataset?.urls) {
     try { urls = JSON.parse(cardEl.dataset.urls); } catch {}
+  }
+  if (action === 'nuke') {
     for (const url of urls) {
-      try { await chrome.tabs.create({ url }); } catch {}
+      try { await chrome.tabs.create({ url, active: false }); } catch {}
     }
   }
   // For save: fetch URLs so background can remove from readingList
-  if (action === 'save' && Array.isArray(tabIds) && tabIds.length) {
-    for (const id of tabIds) {
-      try {
-        const t = await chrome.tabs.get(id);
-        if (t?.url) urls.push(t.url);
-      } catch {}
-    }
+  if (action === 'save' && urls.length === 0 && Array.isArray(tabIds) && tabIds.length) {
+    urls = await getTabUrls(tabIds);
   }
   // Tell background to unmark processed (and remove from readingList if save)
   if (Array.isArray(tabIds) && tabIds.length) {
@@ -545,12 +551,16 @@ function showCompletion() {
       title.className = 'nuked-list-title';
       title.textContent = '💥 Nuked clusters';
       nukedList.appendChild(title);
-      nukedClusters.forEach((name, idx) => {
+      nukedClusters.forEach((item, idx) => {
+        const name = typeof item === 'string' ? item : item.name;
         const row = document.createElement('div');
         row.className = 'nuked-item';
         row.innerHTML = `<span class="nuked-name">• ${name}</span> <a href="#" class="nuked-undo">Undo</a>`;
-        row.querySelector('.nuked-undo').onclick = (e) => {
+        row.querySelector('.nuked-undo').onclick = async (e) => {
           e.preventDefault();
+          if (typeof item === 'object' && Array.isArray(item.tabIds)) {
+            await doUndo('nuke', item.tabIds, null, item.urls);
+          }
           nukedClusters.splice(idx, 1);
           row.remove();
           if (nukedClusters.length === 0) nukedList.hidden = true;
