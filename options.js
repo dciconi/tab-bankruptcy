@@ -225,8 +225,9 @@ async function initProviderConfig() {
     }
   });
 
-  // BYOK cards
-  await renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync);
+  // BYOK list
+  await migrateByokSchema(MODELS, PROVIDER_LABELS);
+  await renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS);
 }
 
 function toggleProviderSubsections(provider) {
@@ -264,145 +265,310 @@ async function refreshPuterStatus() {
   }
 }
 
-async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
-  const container = $('byok-cards');
-  container.innerHTML = '';
-  const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
-  const apiKeys = local.apiKeys || {};
-  const verified = local.apiKeysVerified || {};
-  const byokModels = sync.byokModels || {};
-  const activeByokProvider = sync.byokProvider || 'xai';
+// One-time migration from the v2 schema (apiKeys map + byokProvider + byokModels)
+// to the new ordered byokKeys list. Safe to call repeatedly: returns immediately
+// if byokKeys already exists or if there's nothing to migrate.
+async function migrateByokSchema(MODELS, PROVIDER_LABELS) {
+  const local = await new Promise(r => chrome.storage.local.get(null, r));
+  if (Array.isArray(local.byokKeys)) return;
 
-  for (const provider of PROVIDERS) {
-    const card = document.createElement('div');
-    card.className = 'byok-card' + (verified[provider] ? ' verified' : '');
-    card.dataset.provider = provider;
-    const modelDefault = byokModels[provider] || MODELS[provider].default;
-    card.innerHTML = `
-      <div class="byok-card-header">
-        <label class="byok-active">
-          <input type="radio" name="byokProvider" value="${provider}" ${activeByokProvider === provider ? 'checked' : ''}>
-          <strong>${PROVIDER_LABELS[provider]}</strong>
-          <span class="byok-active-tag">active</span>
-        </label>
-      </div>
-      <label class="byok-key-row">
-        <span>API key</span>
-        <span class="byok-key-input">
-          <input type="password" data-provider="${provider}" class="byok-key" placeholder="(no key set)" value="${apiKeys[provider] || ''}">
-          <button type="button" class="btn btn-text byok-show" data-provider="${provider}">show</button>
-        </span>
-      </label>
-      <label class="byok-model-row">
-        <span>Model</span>
-        <select class="byok-model" data-provider="${provider}"></select>
-      </label>
-      <div class="byok-actions">
-        <button type="button" class="btn btn-secondary byok-test" data-provider="${provider}">Test</button>
-        <button type="button" class="btn btn-text byok-clear" data-provider="${provider}">Clear</button>
-        <span class="test-result" data-provider="${provider}"></span>
-      </div>
-      <p class="hint">Keys never leave this device.</p>
-    `;
-    const sel = card.querySelector('.byok-model');
-    for (const opt of MODELS[provider].options) {
-      const o = document.createElement('option');
-      o.value = opt.id; o.textContent = opt.label;
-      sel.appendChild(o);
-    }
-    sel.value = pickPreservedValue(sel, byokModels[provider], MODELS[provider].default);
-    container.appendChild(card);
+  const oldKeys = local.apiKeys || {};
+  const present = Object.keys(oldKeys).filter(p => oldKeys[p]);
+  if (present.length === 0) {
+    // Nothing to migrate; initialize empty list and clear stale fields if any.
+    await new Promise(r => chrome.storage.local.set({ byokKeys: [] }, r));
+    await new Promise(r => chrome.storage.local.remove(['apiKeys', 'apiKeysVerified'], r));
+    await new Promise(r => chrome.storage.sync.remove(['byokProvider', 'byokModels'], r));
+    return;
   }
 
-  // Wire all interactions
-  container.querySelectorAll('.byok-key').forEach(input => {
-    input.addEventListener('input', async () => {
-      const p = input.dataset.provider;
-      const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
-      const keys = local.apiKeys || {};
-      const ver = local.apiKeysVerified || {};
-      const v = input.value.trim();
-      if (v) keys[p] = v; else delete keys[p];
-      // Editing the key invalidates any prior verification.
-      delete ver[p];
-      await new Promise(r => chrome.storage.local.set({ apiKeys: keys, apiKeysVerified: ver }, r));
-      input.closest('.byok-card')?.classList.remove('verified');
-      refreshFinishSetupGate();
-      maybeFlipSetupCompleteFalse(p);
-    });
+  const sync = await new Promise(r => chrome.storage.sync.get(['byokProvider', 'byokModels'], r));
+  const oldActive = sync.byokProvider || present[0];
+  const oldModels = sync.byokModels || {};
+  const verified = local.apiKeysVerified || {};
+
+  // Order: previously active provider first, others after in canonical order.
+  const order = [oldActive, ...['xai', 'openai', 'anthropic', 'google'].filter(p => p !== oldActive)];
+  const newKeys = order
+    .filter(p => oldKeys[p])
+    .map(p => ({
+      id: newKeyId(),
+      label: (PROVIDER_LABELS[p] || p) + ' key',
+      provider: p,
+      model: oldModels[p] || MODELS[p].default,
+      key: oldKeys[p],
+      status: verified[p] ? 'verified' : 'untested',
+      lastTestedAt: verified[p] ? Date.now() : null,
+      lastError: null
+    }));
+
+  await new Promise(r => chrome.storage.local.set({ byokKeys: newKeys }, r));
+  await new Promise(r => chrome.storage.local.remove(['apiKeys', 'apiKeysVerified'], r));
+  await new Promise(r => chrome.storage.sync.remove(['byokProvider', 'byokModels'], r));
+}
+
+function newKeyId() {
+  return 'k_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+}
+
+async function getByokKeys() {
+  const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+  return Array.isArray(local.byokKeys) ? local.byokKeys : [];
+}
+
+async function setByokKeys(keys) {
+  await new Promise(r => chrome.storage.local.set({ byokKeys: keys }, r));
+}
+
+const STATUS_BADGE = {
+  verified:   { glyph: '✓', label: 'Working',  cls: 'status-verified' },
+  failed:     { glyph: '✗', label: 'Failing',  cls: 'status-failed' },
+  untested:   { glyph: '?', label: 'Untested', cls: 'status-untested' }
+};
+
+async function renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS) {
+  const list = $('byok-list');
+  const empty = $('byok-empty');
+  list.innerHTML = '';
+  const keys = await getByokKeys();
+  empty.classList.toggle('hidden', keys.length > 0);
+
+  keys.forEach((k, idx) => {
+    const isFirst = idx === 0;
+    const isLast = idx === keys.length - 1;
+    const badge = STATUS_BADGE[k.status] || STATUS_BADGE.untested;
+    const row = document.createElement('div');
+    row.className = 'byok-row';
+    row.dataset.id = k.id;
+    row.innerHTML = `
+      <div class="byok-row-reorder">
+        <button type="button" class="btn-icon byok-up" title="Move up" ${isFirst ? 'disabled' : ''} aria-label="Move up">↑</button>
+        <button type="button" class="btn-icon byok-down" title="Move down" ${isLast ? 'disabled' : ''} aria-label="Move down">↓</button>
+      </div>
+      <div class="byok-row-status">
+        <span class="status-pill ${badge.cls}" title="${badge.label}">${badge.glyph}</span>
+        ${isFirst ? '<span class="default-tag">default</span>' : ''}
+      </div>
+      <div class="byok-row-body">
+        <div class="byok-row-label">${escapeText(k.label)}</div>
+        <div class="byok-row-meta">${escapeText(PROVIDER_LABELS[k.provider] || k.provider)} · ${escapeText(k.model)}</div>
+        ${k.status === 'failed' && k.lastError ? `<div class="byok-row-error">Last error: ${escapeText(k.lastError)}</div>` : ''}
+      </div>
+      <div class="byok-row-actions">
+        <button type="button" class="btn btn-secondary byok-test-row">Test</button>
+        <button type="button" class="btn btn-text byok-edit-row">Edit</button>
+        <button type="button" class="btn btn-text byok-delete-row">Delete</button>
+        <span class="test-result byok-row-result"></span>
+      </div>
+    `;
+    row.querySelector('.byok-up').addEventListener('click', () => moveKey(k.id, -1, MODELS, PROVIDERS, PROVIDER_LABELS));
+    row.querySelector('.byok-down').addEventListener('click', () => moveKey(k.id, +1, MODELS, PROVIDERS, PROVIDER_LABELS));
+    row.querySelector('.byok-test-row').addEventListener('click', () => testRow(k.id, row, MODELS, PROVIDERS, PROVIDER_LABELS));
+    row.querySelector('.byok-edit-row').addEventListener('click', () => openEditForm(k.id, MODELS, PROVIDERS, PROVIDER_LABELS));
+    row.querySelector('.byok-delete-row').addEventListener('click', () => deleteKey(k.id, MODELS, PROVIDERS, PROVIDER_LABELS));
+    list.appendChild(row);
   });
-  container.querySelectorAll('.byok-show').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const input = container.querySelector(`.byok-key[data-provider="${btn.dataset.provider}"]`);
-      input.type = input.type === 'password' ? 'text' : 'password';
-      btn.textContent = input.type === 'password' ? 'show' : 'hide';
-    });
+
+  // Wire the Add form once (idempotent — re-render keeps the form in DOM).
+  if (!$('btn-byok-add').dataset.wired) {
+    wireByokAddForm(MODELS, PROVIDERS, PROVIDER_LABELS);
+    $('btn-byok-add').dataset.wired = '1';
+  }
+
+  refreshFinishSetupGate();
+}
+
+function escapeText(s) {
+  const div = document.createElement('div');
+  div.textContent = s == null ? '' : String(s);
+  return div.innerHTML;
+}
+
+function wireByokAddForm(MODELS, PROVIDERS, PROVIDER_LABELS) {
+  const form = $('byok-add-form');
+  const btnAdd = $('btn-byok-add');
+  const btnSave = $('btn-byok-save');
+  const btnCancel = $('btn-byok-cancel');
+  const providerSel = $('byok-form-provider');
+  const modelSel = $('byok-form-model');
+  const labelInput = $('byok-form-label');
+  const keyInput = $('byok-form-key');
+  const result = $('byok-form-result');
+
+  // Populate provider options once.
+  providerSel.innerHTML = '';
+  for (const p of PROVIDERS) {
+    const o = document.createElement('option');
+    o.value = p; o.textContent = PROVIDER_LABELS[p];
+    providerSel.appendChild(o);
+  }
+
+  function refillModelOptions() {
+    const p = providerSel.value;
+    modelSel.innerHTML = '';
+    for (const opt of MODELS[p].options) {
+      const o = document.createElement('option');
+      o.value = opt.id; o.textContent = opt.label;
+      modelSel.appendChild(o);
+    }
+    modelSel.value = MODELS[p].default;
+  }
+  providerSel.addEventListener('change', refillModelOptions);
+
+  btnAdd.addEventListener('click', () => {
+    form.dataset.editingId = '';
+    form.querySelector('h4').textContent = 'Add API key';
+    btnSave.textContent = 'Save & Test';
+    labelInput.value = '';
+    providerSel.value = PROVIDERS[0];
+    refillModelOptions();
+    keyInput.value = '';
+    result.textContent = '';
+    form.classList.remove('hidden');
+    btnAdd.classList.add('hidden');
+    labelInput.focus();
   });
-  container.querySelectorAll('.byok-model').forEach(sel => {
-    sel.addEventListener('change', async () => {
-      const p = sel.dataset.provider;
-      const sync = await new Promise(r => chrome.storage.sync.get(['byokModels'], r));
-      const m = sync.byokModels || {};
-      m[p] = sel.value;
-      await new Promise(r => chrome.storage.sync.set({ byokModels: m }, r));
-    });
+
+  btnCancel.addEventListener('click', () => {
+    form.classList.add('hidden');
+    btnAdd.classList.remove('hidden');
+    result.textContent = '';
   });
-  container.querySelectorAll('input[name="byokProvider"]').forEach(r => {
-    r.addEventListener('change', async () => {
-      const v = container.querySelector('input[name="byokProvider"]:checked').value;
-      await new Promise(res => chrome.storage.sync.set({ byokProvider: v }, res));
-      refreshFinishSetupGate();
-    });
-  });
-  container.querySelectorAll('.byok-test').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const p = btn.dataset.provider;
-      const card = btn.closest('.byok-card');
-      const result = container.querySelector(`.test-result[data-provider="${p}"]`);
-      result.textContent = '…';
-      try {
-        const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
-        const key = (local.apiKeys || {})[p];
-        if (!key) throw new Error('No key set');
-        const sync = await new Promise(r => chrome.storage.sync.get(['byokModels'], r));
-        const model = (sync.byokModels || {})[p] || MODELS[p].default;
-        await testByokConnection(p, key, model);
-        result.textContent = '✓ OK';
-        await setVerified(p, true);
-        card?.classList.add('verified');
-      } catch (e) {
-        result.textContent = '✗ ' + (e?.message || e);
-        await setVerified(p, false);
-        card?.classList.remove('verified');
+
+  btnSave.addEventListener('click', async () => {
+    const editingId = form.dataset.editingId || '';
+    const provider = providerSel.value;
+    const model = modelSel.value;
+    const keyVal = keyInput.value.trim();
+    const labelVal = labelInput.value.trim() || `${PROVIDER_LABELS[provider]} key`;
+    if (!keyVal) {
+      result.textContent = '✗ API key is required';
+      return;
+    }
+    btnSave.disabled = true;
+    result.textContent = '… testing';
+    let status = 'untested';
+    let lastError = null;
+    try {
+      await testByokConnection(provider, keyVal, model);
+      status = 'verified';
+      result.textContent = '✓ OK — saving';
+    } catch (e) {
+      status = 'failed';
+      lastError = e?.message || String(e);
+      result.textContent = '✗ ' + lastError + ' — saved anyway; you can fix and re-test';
+    }
+    const keys = await getByokKeys();
+    if (editingId) {
+      const idx = keys.findIndex(k => k.id === editingId);
+      if (idx >= 0) {
+        keys[idx] = {
+          ...keys[idx],
+          label: labelVal,
+          provider,
+          model,
+          key: keyVal,
+          status,
+          lastTestedAt: Date.now(),
+          lastError
+        };
       }
-    });
-  });
-  container.querySelectorAll('.byok-clear').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const p = btn.dataset.provider;
-      const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
-      const keys = local.apiKeys || {};
-      const ver = local.apiKeysVerified || {};
-      delete keys[p];
-      delete ver[p];
-      await new Promise(r => chrome.storage.local.set({ apiKeys: keys, apiKeysVerified: ver }, r));
-      const input = container.querySelector(`.byok-key[data-provider="${p}"]`);
-      if (input) input.value = '';
-      btn.closest('.byok-card')?.classList.remove('verified');
-      const result = container.querySelector(`.test-result[data-provider="${p}"]`);
-      if (result) result.textContent = '';
-      refreshFinishSetupGate();
-      maybeFlipSetupCompleteFalse(p);
-    });
+    } else {
+      keys.push({
+        id: newKeyId(),
+        label: labelVal,
+        provider,
+        model,
+        key: keyVal,
+        status,
+        lastTestedAt: Date.now(),
+        lastError
+      });
+    }
+    await setByokKeys(keys);
+    btnSave.disabled = false;
+    setTimeout(() => {
+      form.classList.add('hidden');
+      btnAdd.classList.remove('hidden');
+      renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS);
+    }, status === 'verified' ? 600 : 1500);
   });
 }
 
-// Persist per-provider verification state in chrome.storage.local.
-async function setVerified(provider, isVerified) {
-  const local = await new Promise(r => chrome.storage.local.get(['apiKeysVerified'], r));
-  const ver = local.apiKeysVerified || {};
-  if (isVerified) ver[provider] = true; else delete ver[provider];
-  await new Promise(r => chrome.storage.local.set({ apiKeysVerified: ver }, r));
+async function openEditForm(id, MODELS, PROVIDERS, PROVIDER_LABELS) {
+  const keys = await getByokKeys();
+  const k = keys.find(x => x.id === id);
+  if (!k) return;
+  const form = $('byok-add-form');
+  const btnAdd = $('btn-byok-add');
+  const providerSel = $('byok-form-provider');
+  const modelSel = $('byok-form-model');
+  const labelInput = $('byok-form-label');
+  const keyInput = $('byok-form-key');
+  const result = $('byok-form-result');
+
+  form.dataset.editingId = id;
+  form.querySelector('h4').textContent = 'Edit API key';
+  $('btn-byok-save').textContent = 'Save & Re-test';
+  providerSel.value = k.provider;
+  // Refill model options for this provider, then preserve current selection if still valid.
+  modelSel.innerHTML = '';
+  for (const opt of MODELS[k.provider].options) {
+    const o = document.createElement('option');
+    o.value = opt.id; o.textContent = opt.label;
+    modelSel.appendChild(o);
+  }
+  modelSel.value = pickPreservedValue(modelSel, k.model, MODELS[k.provider].default);
+  labelInput.value = k.label;
+  keyInput.value = k.key;
+  result.textContent = '';
+  form.classList.remove('hidden');
+  btnAdd.classList.add('hidden');
+  labelInput.focus();
+}
+
+async function deleteKey(id, MODELS, PROVIDERS, PROVIDER_LABELS) {
+  if (!confirm('Delete this API key? This cannot be undone.')) return;
+  const keys = (await getByokKeys()).filter(k => k.id !== id);
+  await setByokKeys(keys);
+  await renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS);
+  await maybeFlipSetupCompleteFalse();
+}
+
+async function moveKey(id, delta, MODELS, PROVIDERS, PROVIDER_LABELS) {
+  const keys = await getByokKeys();
+  const idx = keys.findIndex(k => k.id === id);
+  if (idx < 0) return;
+  const next = idx + delta;
+  if (next < 0 || next >= keys.length) return;
+  [keys[idx], keys[next]] = [keys[next], keys[idx]];
+  await setByokKeys(keys);
+  await renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS);
+}
+
+async function testRow(id, rowEl, MODELS, PROVIDERS, PROVIDER_LABELS) {
+  const result = rowEl.querySelector('.byok-row-result');
+  result.textContent = '…';
+  const keys = await getByokKeys();
+  const k = keys.find(x => x.id === id);
+  if (!k) return;
+  try {
+    await testByokConnection(k.provider, k.key, k.model);
+    result.textContent = '✓ OK';
+    k.status = 'verified';
+    k.lastTestedAt = Date.now();
+    k.lastError = null;
+  } catch (e) {
+    const msg = e?.message || String(e);
+    result.textContent = '✗ ' + msg;
+    k.status = 'failed';
+    k.lastTestedAt = Date.now();
+    k.lastError = msg;
+  }
+  await setByokKeys(keys);
+  // Defer the re-render slightly so the user sees the inline result before
+  // the row re-renders and replaces it with the persisted status pill.
+  setTimeout(() => renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS), 600);
 }
 
 // Tiny 1-token call to verify a BYOK provider key works.
@@ -450,15 +616,14 @@ async function testByokConnection(provider, key, model) {
   throw new Error(`Unknown provider: ${provider}`);
 }
 
-// If the user clears the key for the active BYOK provider, flip setupComplete=false.
-async function maybeFlipSetupCompleteFalse(clearedProvider) {
-  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'byokProvider'], r));
-  if (sync.provider === 'byok' && sync.byokProvider === clearedProvider) {
-    const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
-    const k = (local.apiKeys || {})[clearedProvider];
-    if (!k) {
-      await new Promise(r => chrome.storage.sync.set({ setupComplete: false }, r));
-    }
+// If BYOK is the active provider AND the user just emptied the key list,
+// flip setupComplete=false so the popup goes back to the setup gate on next open.
+async function maybeFlipSetupCompleteFalse() {
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider'], r));
+  if (sync.provider !== 'byok') return;
+  const keys = await getByokKeys();
+  if (keys.length === 0) {
+    await new Promise(r => chrome.storage.sync.set({ setupComplete: false }, r));
   }
 }
 
@@ -479,8 +644,7 @@ async function refreshFinishSetupGate() {
   const btn = $('btn-finish-setup');
   const hint = $('finish-setup-hint');
   if (!btn) return;
-  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'byokProvider'], r));
-  const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider'], r));
   const provider = sync.provider || 'puter';
   let valid = false;
   let why = '';
@@ -490,17 +654,9 @@ async function refreshFinishSetupGate() {
     }
     why = valid ? '' : 'Sign in to Puter to enable.';
   } else {
-    const keys = local.apiKeys || {};
-    const candidates = ['xai','openai','anthropic','google'].filter(p => !!keys[p]);
-    if (candidates.length > 0) {
-      // If active byokProvider has no key, auto-pick the first one with a key (Grok-preferred).
-      const active = sync.byokProvider || 'xai';
-      if (!keys[active]) {
-        await new Promise(r => chrome.storage.sync.set({ byokProvider: candidates[0] }, r));
-      }
-      valid = true;
-    }
-    why = valid ? '' : 'Add at least one BYOK key to enable.';
+    const keys = await getByokKeys();
+    valid = keys.length > 0;
+    why = valid ? '' : 'Add at least one API key to enable.';
   }
   btn.disabled = !valid;
   hint.textContent = why;

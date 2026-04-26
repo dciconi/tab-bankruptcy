@@ -5,6 +5,7 @@ import { playNuke, playKeep, playSave, playCompletion, loadMute } from './lib/au
 import {
   clusterTabs,
   PUTER_DASHBOARD_URL,
+  MODELS,
   ApiKeyMissingError,
   PuterNotSignedIn,
   PuterOutOfCredits,
@@ -160,14 +161,26 @@ async function runClusterFlow() {
   }
   // 2. Load merged settings (sync + local)
   const sync = await new Promise(r => chrome.storage.sync.get(null, r));
-  const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+  const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
   const settings = {
     provider: sync.provider || 'puter',
-    puterModel: sync.puterModel || 'x-ai/grok-3-mini',
-    byokProvider: sync.byokProvider || 'xai',
-    byokModels: sync.byokModels || { xai:'grok-3-mini', openai:'gpt-4o-mini', anthropic:'claude-haiku-4-5-20251001', google:'gemini-2.5-flash' },
+    puterModel: sync.puterModel || MODELS.puter.default,
     customPrompt: sync.customPrompt || '',
-    apiKeys: local.apiKeys || {}
+    byokKeys: Array.isArray(local.byokKeys) ? local.byokKeys : [],
+    // Persist verification status as keys are tried in fallback order.
+    onKeyStatus: async (keyId, status, errMessage) => {
+      const cur = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+      const list = Array.isArray(cur.byokKeys) ? cur.byokKeys : [];
+      const idx = list.findIndex(k => k.id === keyId);
+      if (idx === -1) return;
+      list[idx] = {
+        ...list[idx],
+        status,
+        lastTestedAt: Date.now(),
+        lastError: errMessage || null
+      };
+      await new Promise(r => chrome.storage.local.set({ byokKeys: list }, r));
+    }
   };
   // 3. Run the LLM
   const clusters = await clusterTabs(tabResp.tabs, settings);
