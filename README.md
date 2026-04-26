@@ -11,7 +11,9 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 | Feature | Description |
 |---------|-------------|
 | 🪦 **Declare Bankruptcy** | One click clusters all tabs via your chosen AI provider |
-| 🤖 **Multi-provider** | Default: Puter.js (sign in & start). BYOK fallback: xAI · OpenAI · Anthropic · Google |
+| 🤖 **Multi-provider** | Default: Puter.js (sign in & start). BYOK fallback across xAI · OpenAI · Anthropic · Google |
+| 🔑 **BYOK key list** | Add as many keys as you want; ordered fallback chain — if the top key fails, the next is tried automatically |
+| ✨ **Auto-setup** | Setup completes the moment you sign in to Puter or save a working API key — no explicit "finish" click |
 | 🗂️ **Smart Clusters** | Tabs grouped by topic with witty names + emojis |
 | ✅ **Keep** | Leave tabs open (green checkmark) |
 | 📥 **Save & Close** | Add cluster URLs to Chrome's Reading List with `[clusterName]` prefix |
@@ -21,6 +23,7 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 | 🔊 **Sound Effects** | Web Audio: click, whoosh, cha-ching, fanfare |
 | ⌨️ **Keyboard Nav** | Tab/Arrows, K/S/N, Enter to expand |
 | ♿ **Accessibility** | ARIA labels, focus states, reduced motion |
+| 🧹 **Reset** | One-click factory reset — wipes every preference, key, Puter session, and cached cluster state |
 
 ---
 
@@ -36,10 +39,10 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 
 ### First Run
 
-On install, the options page opens automatically with a setup gate. Pick a provider before clustering:
+On install, the options page opens automatically with a welcome banner. Pick a provider — setup auto-completes the moment you reach a working state:
 
-- **Puter** (recommended): click **Sign in to Puter** → complete OAuth → click **Finish Setup**. No API keys to manage. Puter bills you directly for usage.
-- **BYOK**: paste a key into one of the four provider cards (xAI / OpenAI / Anthropic / Google), pick a model, click **Test** to verify (✓ confirms the key + model work, and the green "active" tag appears), click **Finish Setup**.
+- **Puter** (recommended): click **Sign in to Puter** → complete OAuth → done. No API keys to manage. Puter bills you directly for usage.
+- **BYOK**: click **+ Add API key** → enter a label, pick a provider, pick a model, paste your key → **Save & Test**. On a successful 1-token verification, setup auto-completes. Add more keys to build a fallback chain — keys are tried top-to-bottom and the first that works is used.
 
 After setup:
 
@@ -79,9 +82,10 @@ background.js                         ← service worker: tabs query, session ca
 - **Manifest V3** — service worker, no background page; popup is a full tab opened via `chrome.action.onClicked`.
 - **No backend** — the maintainer operates no server. LLM calls go directly from the browser to the provider.
 - **No remote scripts at runtime** — CSP `script-src 'self'`. The Puter SDK is vendored at `lib/puter.js` (pinned via `lib/puter.VERSION`).
-- **Storage split** — provider/model selections in `chrome.storage.sync` (roams across the user's Chrome profiles); API keys in `chrome.storage.local` (per-device, never synced).
+- **Storage split** — provider/model preferences in `chrome.storage.sync` (roams across the user's Chrome profiles); BYOK API keys live in `chrome.storage.local` as an ordered `byokKeys` list (per-device, never synced).
+- **Setup state is reconciled, not migrated** — `setupComplete` is recomputed on each popup/options open from the actual storage state (`reconcileSetupComplete()` in `popup.js` and `options.js`). Existing users with working configs are not re-gated on extension updates.
 - **Permissions** — `tabs`, `storage`, `tabGroups`, `alarms`, `readingList`.
-- **CSP `connect-src`** — `'self'` plus the five provider hosts (xAI, OpenAI, Anthropic, Google, Puter).
+- **CSP `connect-src`** — `'self'` plus the five HTTPS provider hosts (xAI, OpenAI, Anthropic, Google, Puter) plus `wss://api.puter.com` and `wss://*.puter.com` for Puter's Socket.IO transport.
 
 See [`context.md`](./context.md) for project history, standing decisions, and Puter SDK quirks worth not rediscovering. See [`docs/superpowers/specs/`](./docs/superpowers/specs/) for the v2 design spec.
 
@@ -94,13 +98,13 @@ tab-bankruptcy/
 ├── manifest.json                   # MV3 manifest (permissions, CSP, icons)
 ├── background.js                   # Tab queries, session cache, processed-tab tracking, tab groups
 ├── background.test.js
-├── popup.html                      # 5 views: setup-required, idle, loading, triage, completion, error
-├── popup.js                        # State machine + LLM orchestration (clusterTabs)
+├── popup.html                      # 6 views: setup-required, idle, loading, triage, completion, error
+├── popup.js                        # State machine + LLM orchestration; active-provider display; asymptotic progress bar
 ├── popup.css                       # Dark theme, animations, confetti, reduced-motion
 ├── popup.test.js
 ├── popup.css.test.js
-├── options.html                    # Welcome gate, provider config, prompt editor, theme
-├── options.js                      # Provider radios, Puter sign-in, BYOK cards, key entry, Test/Clear
+├── options.html                    # Welcome banner, provider config, BYOK key list, prompt editor, theme, reset
+├── options.js                      # Provider radios, Puter sign-in/test, BYOK list (add/edit/delete/reorder/test), reset
 ├── options.css
 ├── options.test.js
 ├── manifest.test.js
@@ -131,8 +135,7 @@ tab-bankruptcy/
 │   └── icon128.png
 └── docs/
     ├── maintenance/
-    │   ├── puter-sdk-updates.md    # How to bump the vendored Puter SDK + smoke test checklist
-    │   └── v2-migration.md         # v1->v2 forced re-setup; removal criteria for v3
+    │   └── puter-sdk-updates.md    # How to bump the vendored Puter SDK + smoke test checklist
     └── superpowers/{specs,plans}/  # Design spec + implementation plan for v2
 ```
 
@@ -214,7 +217,9 @@ The user signs in to Puter once via OAuth (popup window). Puter then handles bil
 
 ### BYOK
 
-For users with their own API keys. Four providers, each in `lib/llm/byok/`:
+For users with their own API keys. Stored as an **ordered list** of `{ id, label, provider, model, key, status, lastTestedAt, lastError }` objects in `chrome.storage.local.byokKeys`. The list is the fallback chain — position 0 is the default.
+
+**Adapter files** (one per provider, in `lib/llm/byok/`):
 
 | Provider | Endpoint | Auth | Notes |
 |----------|----------|------|-------|
@@ -223,9 +228,20 @@ For users with their own API keys. Four providers, each in `lib/llm/byok/`:
 | Anthropic | `POST https://api.anthropic.com/v1/messages` | `x-api-key: <key>` + `anthropic-version: 2023-06-01` + `anthropic-dangerous-direct-browser-access: true` | System prompt is a separate field |
 | Google | `POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent` | `?key=<key>` query param | Different message shape (`contents` / `parts`) |
 
-Errors are normalized into a shared taxonomy: `auth` (401/403), `rate_limit` (429), `network` (fetch threw), `unknown` (other non-OK). The popup shows a tailored error message + action buttons per kind.
+**Runtime fallback** (`lib/llm/byok-provider.js`):
+1. Try `byokKeys[0]`. On success → done; mark `status: 'verified'`.
+2. On failure → mark `status: 'failed'` with `lastError`, try the next key.
+3. If every key fails → rethrow the last error.
+4. The popup provides an `onKeyStatus(id, status, error)` callback so live verification state is persisted as fallback runs.
 
-**Keys never leave the user's device.** They live in `chrome.storage.local` only — never `chrome.storage.sync`, which roams to other profiles.
+Errors are normalized into a shared taxonomy: `auth` (401/403), `rate_limit` (429), `network` (fetch threw), `unknown` (other non-OK). The popup error UI shows a tailored message + action buttons per kind.
+
+**Options-page UX:**
+- Each key gets one row showing label, provider · model, status pill (✓ verified / ✗ failed / ? untested), and last-error line on failures.
+- ↑/↓ buttons reorder the chain. Test, Edit, Delete buttons per row.
+- The Add/Edit form runs a 1-token verification on Save & Test before persisting; the resulting status is stored on the key.
+
+**Keys never leave the user's device.** `byokKeys` lives in `chrome.storage.local` only — never `chrome.storage.sync`, which would roam to other profiles.
 
 ---
 
@@ -246,10 +262,10 @@ The list of selectable models is **data, not code**. Edit [`lib/llm/models.json`
   },
   "models": {
     "puter": {
-      "default": "x-ai/grok-4-1-fast-non-reasoning",
+      "default": "x-ai/grok-3-mini",
       "options": [
-        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
-        { "id": "gpt-4o-mini",                      "label": "GPT-4o mini" }
+        { "id": "x-ai/grok-3-mini", "label": "Grok 3 mini (default)" },
+        { "id": "gpt-4o-mini",      "label": "GPT-4o mini" }
       ]
     },
     "xai":       { "default": "...", "options": [...] },
@@ -295,15 +311,18 @@ Tab clustering reads ~20 tab titles and emits ~5 cluster names. It's a low-reaso
 | Issue | Fix |
 |-------|-----|
 | Extension doesn't load | Check `chrome://extensions` for errors; reload manifest |
-| First run / setup gate | Open the extension icon → click "Open Settings" → pick Puter or BYOK and finish setup |
+| Setup-required gate appears | Open the extension icon → click "Open Settings" → sign in to Puter or add a BYOK key. Setup auto-completes on a successful sign-in or Save & Test. |
 | "You're out of Puter credits" | Top up at [puter.com/dashboard](https://puter.com/dashboard), or switch to BYOK in Settings |
-| BYOK key rejected (401/403) | Verify the key in the provider's console; for xAI specifically, check that the model ID is current and your team has credits |
-| BYOK rate limit (429) | Wait a moment and retry; consider switching to a different provider in Settings |
+| BYOK key rejected (401/403) | Verify the key in the provider's console; for xAI specifically, check that the model ID is current and your team has credits. The fallback chain will move to the next key automatically. |
+| BYOK rate limit (429) | Wait a moment and retry; the chain falls through to the next key automatically. Add additional keys in Settings to keep working under load. |
 | "Couldn't reach the model" | Check internet; verify CSP `connect-src` and `host_permissions` in `manifest.json` cover the provider host |
 | "Model returned an unexpected response" | Provider returned non-JSON. Try Retry; if persistent, switch models or providers |
+| `Refused to connect to wss://api.puter.com/...` (CSP) | Reload the extension. CSP must include `wss://api.puter.com` and `wss://*.puter.com` (added in v2.x). |
+| `WebSocket is closed before the connection is established` | Benign. Puter's SDK uses Socket.IO for realtime features the extension doesn't use; long-polling fallback continues working and `puter.ai.chat()` is unaffected. |
 | Sound doesn't play | Check mute toggle in Settings; browser may block autoplay |
 | Reading list save not working | Ensure the `readingList` permission is in `manifest.json`; verify `chrome.readingList` is available in your Chrome version |
 | Keyboard nav not working | Focus must be on the popup tab (click into it first) |
+| Want to start over | Click **Reset everything** at the bottom of Settings. Confirms before wiping every preference, key, Puter session, and cached cluster state. |
 
 ---
 
