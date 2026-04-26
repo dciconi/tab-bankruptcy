@@ -169,7 +169,6 @@ async function initProviderConfig() {
     const v = document.querySelector('input[name="provider"]:checked').value;
     await new Promise(res => chrome.storage.sync.set({ provider: v }, res));
     toggleProviderSubsections(v);
-    refreshFinishSetupGate();
   }));
 
   // Puter model dropdown
@@ -192,7 +191,9 @@ async function initProviderConfig() {
     try {
       await window.puter.auth.signIn();
       await refreshPuterStatus();
-      refreshFinishSetupGate();
+      if (await window.puter.auth.isSignedIn()) {
+        await markSetupComplete();
+      }
     } catch (e) {
       alert('Sign-in failed: ' + (e?.message || e));
     }
@@ -206,7 +207,6 @@ async function initProviderConfig() {
       if (provider === 'puter') {
         await new Promise(r => chrome.storage.sync.set({ setupComplete: false }, r));
       }
-      refreshFinishSetupGate();
     } catch (e) {
       alert('Sign-out failed: ' + (e?.message || e));
     }
@@ -374,8 +374,6 @@ async function renderByokList(MODELS, PROVIDERS, PROVIDER_LABELS) {
     wireByokAddForm(MODELS, PROVIDERS, PROVIDER_LABELS);
     $('btn-byok-add').dataset.wired = '1';
   }
-
-  refreshFinishSetupGate();
 }
 
 function escapeText(s) {
@@ -453,6 +451,7 @@ function wireByokAddForm(MODELS, PROVIDERS, PROVIDER_LABELS) {
       await testByokConnection(provider, keyVal, model);
       status = 'verified';
       result.textContent = '✓ OK — saving';
+      await markSetupComplete();
     } catch (e) {
       status = 'failed';
       lastError = e?.message || String(e);
@@ -558,6 +557,7 @@ async function testRow(id, rowEl, MODELS, PROVIDERS, PROVIDER_LABELS) {
     k.status = 'verified';
     k.lastTestedAt = Date.now();
     k.lastError = null;
+    await markSetupComplete();
   } catch (e) {
     const msg = e?.message || String(e);
     result.textContent = '✗ ' + msg;
@@ -627,38 +627,15 @@ async function maybeFlipSetupCompleteFalse() {
   }
 }
 
+async function markSetupComplete() {
+  await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+  const w = $('welcome-section'); if (w) w.classList.add('hidden');
+}
+
 async function initWelcomeGate() {
   const params = new URLSearchParams(window.location.search);
   const sync = await new Promise(r => chrome.storage.sync.get(['setupComplete'], r));
   const showWelcome = params.get('welcome') === '1' || !sync.setupComplete;
   $('welcome-section').classList.toggle('hidden', !showWelcome);
-  refreshFinishSetupGate();
-
-  $('btn-finish-setup').addEventListener('click', async () => {
-    await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
-    $('welcome-section').classList.add('hidden');
-  });
 }
 
-async function refreshFinishSetupGate() {
-  const btn = $('btn-finish-setup');
-  const hint = $('finish-setup-hint');
-  if (!btn) return;
-  const sync = await new Promise(r => chrome.storage.sync.get(['provider'], r));
-  const provider = sync.provider || 'puter';
-  let valid = false;
-  let why = '';
-  if (provider === 'puter') {
-    if (window.puter) {
-      try { valid = await window.puter.auth.isSignedIn(); } catch {}
-    }
-    why = valid ? '' : 'Sign in to Puter to enable.';
-  } else {
-    const keys = await getByokKeys();
-    valid = keys.length > 0;
-    why = valid ? '' : 'Add at least one API key to enable.';
-  }
-  btn.disabled = !valid;
-  hint.textContent = why;
-  hint.style.display = why ? '' : 'none';
-}

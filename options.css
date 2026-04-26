@@ -1160,3 +1160,15 @@ body.light-mode .byok-form-row select { background: rgba(0,0,0,0.04); border-col
 
 #btn-byok-add { align-self: flex-start; margin-top: 8px; }
 #btn-byok-add.hidden { display: none; }
+
+/* Native dropdown option contrast — rgba backgrounds are ignored by OS pickers */
+.byok-form-row select option,
+#puter-model option {
+  background-color: #141f36;
+  color: #f1f5f9;
+}
+body.light-mode .byok-form-row select option,
+body.light-mode #puter-model option {
+  background-color: #ffffff;
+  color: #1e2937;
+}
