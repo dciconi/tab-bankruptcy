@@ -50,6 +50,7 @@ The full table is in the active spec §6.8, but the load-bearing ones:
 - **Don't enable `stream: true`.** Upstream issue #2410 — streams hang indefinitely on errors instead of rejecting.
 - **`puter.ai.chat(prompt, testMode=true, options)`** runs the full path without consuming credits. Used by the "Test connection" button in options.
 - **Discover Grok IDs via `puter.ai.listModels('xai')`.** Puter doesn't pin model IDs in public docs; what's hardcoded in `models.js` came from a runtime listing on the date in `lib/puter.VERSION`.
+- **Console noise: "WebSocket is closed before the connection is established".** Puter's SDK uses Socket.IO for realtime events (puter.fs, puter.print, etc.) — features we don't use. Socket.IO opens with HTTP long-polling and probes a WS upgrade; the probe may fail and log this message, then long-polling continues working. `puter.ai.chat()` is a plain HTTPS POST to `api.puter.com/drivers/call` and does NOT depend on the WebSocket. CSP must allow `wss://api.puter.com` and `wss://*.puter.com` so the page itself doesn't reject the probe (commit `30c0661`), but the probe-then-fail messages are not actionable on our end. Don't waste time debugging them.
 
 ## Pointers
 
