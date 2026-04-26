@@ -259,14 +259,16 @@ async function refreshPuterStatus() {
 async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
   const container = $('byok-cards');
   container.innerHTML = '';
-  const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+  const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
   const apiKeys = local.apiKeys || {};
+  const verified = local.apiKeysVerified || {};
   const byokModels = sync.byokModels || {};
   const activeByokProvider = sync.byokProvider || 'xai';
 
   for (const provider of PROVIDERS) {
     const card = document.createElement('div');
-    card.className = 'byok-card';
+    card.className = 'byok-card' + (verified[provider] ? ' verified' : '');
+    card.dataset.provider = provider;
     const modelDefault = byokModels[provider] || MODELS[provider].default;
     card.innerHTML = `
       <div class="byok-card-header">
@@ -308,11 +310,15 @@ async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
   container.querySelectorAll('.byok-key').forEach(input => {
     input.addEventListener('input', async () => {
       const p = input.dataset.provider;
-      const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+      const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
       const keys = local.apiKeys || {};
+      const ver = local.apiKeysVerified || {};
       const v = input.value.trim();
       if (v) keys[p] = v; else delete keys[p];
-      await new Promise(r => chrome.storage.local.set({ apiKeys: keys }, r));
+      // Editing the key invalidates any prior verification.
+      delete ver[p];
+      await new Promise(r => chrome.storage.local.set({ apiKeys: keys, apiKeysVerified: ver }, r));
+      input.closest('.byok-card')?.classList.remove('verified');
       refreshFinishSetupGate();
       maybeFlipSetupCompleteFalse(p);
     });
@@ -343,6 +349,7 @@ async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
   container.querySelectorAll('.byok-test').forEach(btn => {
     btn.addEventListener('click', async () => {
       const p = btn.dataset.provider;
+      const card = btn.closest('.byok-card');
       const result = container.querySelector(`.test-result[data-provider="${p}"]`);
       result.textContent = '…';
       try {
@@ -353,24 +360,41 @@ async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
         const model = (sync.byokModels || {})[p] || MODELS[p].default;
         await testByokConnection(p, key, model);
         result.textContent = '✓ OK';
+        await setVerified(p, true);
+        card?.classList.add('verified');
       } catch (e) {
         result.textContent = '✗ ' + (e?.message || e);
+        await setVerified(p, false);
+        card?.classList.remove('verified');
       }
     });
   });
   container.querySelectorAll('.byok-clear').forEach(btn => {
     btn.addEventListener('click', async () => {
       const p = btn.dataset.provider;
-      const local = await new Promise(r => chrome.storage.local.get(['apiKeys'], r));
+      const local = await new Promise(r => chrome.storage.local.get(['apiKeys', 'apiKeysVerified'], r));
       const keys = local.apiKeys || {};
+      const ver = local.apiKeysVerified || {};
       delete keys[p];
-      await new Promise(r => chrome.storage.local.set({ apiKeys: keys }, r));
+      delete ver[p];
+      await new Promise(r => chrome.storage.local.set({ apiKeys: keys, apiKeysVerified: ver }, r));
       const input = container.querySelector(`.byok-key[data-provider="${p}"]`);
       if (input) input.value = '';
+      btn.closest('.byok-card')?.classList.remove('verified');
+      const result = container.querySelector(`.test-result[data-provider="${p}"]`);
+      if (result) result.textContent = '';
       refreshFinishSetupGate();
       maybeFlipSetupCompleteFalse(p);
     });
   });
+}
+
+// Persist per-provider verification state in chrome.storage.local.
+async function setVerified(provider, isVerified) {
+  const local = await new Promise(r => chrome.storage.local.get(['apiKeysVerified'], r));
+  const ver = local.apiKeysVerified || {};
+  if (isVerified) ver[provider] = true; else delete ver[provider];
+  await new Promise(r => chrome.storage.local.set({ apiKeysVerified: ver }, r));
 }
 
 // Tiny 1-token call to verify a BYOK provider key works.

@@ -928,7 +928,9 @@ body {
   border-radius: 4px;
   display: none;
 }
-.byok-active input:checked ~ .byok-active-tag { display: inline-block; }
+/* Tag shows only when (a) this provider's radio is checked AND (b) the key
+   has been verified by a successful Test. Both conditions are required. */
+.byok-card.verified .byok-active input:checked ~ .byok-active-tag { display: inline-block; }
 .byok-key-row, .byok-model-row {
   display: flex;
   align-items: center;
