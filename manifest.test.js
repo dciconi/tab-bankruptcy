@@ -43,6 +43,13 @@ for (const host of ['api.x.ai', 'api.openai.com', 'api.anthropic.com', 'generati
     errors.push(`CSP connect-src missing ${host}`);
   }
 }
+// Puter SDK uses Socket.IO over WebSocket for real-time events; CSP must
+// allow wss:// to api.puter.com or the page logs noisy violation errors.
+for (const wssHost of ['wss://api.puter.com', 'wss://*.puter.com']) {
+  if (!csp.includes(wssHost)) {
+    errors.push(`CSP connect-src missing ${wssHost}`);
+  }
+}
 // default_popup optional — onClicked opens full tab view
 if (!manifest.background?.service_worker) errors.push('background.service_worker required');
 if (!manifest.icons?.['48'] || !manifest.icons?.['128']) errors.push('icons 48 and 128 required');
