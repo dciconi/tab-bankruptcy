@@ -1,0 +1,50 @@
+{
+  "providers": ["xai", "openai", "anthropic", "google"],
+  "providerLabels": {
+    "xai": "xAI (Grok)",
+    "openai": "OpenAI",
+    "anthropic": "Anthropic (Claude)",
+    "google": "Google (Gemini)"
+  },
+  "models": {
+    "puter": {
+      "default": "x-ai/grok-4-1-fast-non-reasoning",
+      "options": [
+        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
+        { "id": "x-ai/grok-4-1-fast-reasoning",     "label": "Grok 4.1 Fast (reasoning)" },
+        { "id": "gpt-4o-mini",                      "label": "GPT-4o mini" },
+        { "id": "claude-haiku-4-5",                 "label": "Claude Haiku 4.5" },
+        { "id": "gemini-2.5-flash",                 "label": "Gemini 2.5 Flash" }
+      ]
+    },
+    "xai": {
+      "default": "grok-4-1-fast-non-reasoning",
+      "options": [
+        { "id": "grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
+        { "id": "grok-4-1-fast-reasoning",     "label": "Grok 4.1 Fast (reasoning)" }
+      ]
+    },
+    "openai": {
+      "default": "gpt-4o-mini",
+      "options": [
+        { "id": "gpt-4o-mini", "label": "GPT-4o mini — default" },
+        { "id": "gpt-5-mini",  "label": "GPT-5 mini" },
+        { "id": "gpt-4o",      "label": "GPT-4o" }
+      ]
+    },
+    "anthropic": {
+      "default": "claude-haiku-4-5-20251001",
+      "options": [
+        { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5 — default" },
+        { "id": "claude-sonnet-4-6",         "label": "Claude Sonnet 4.6" }
+      ]
+    },
+    "google": {
+      "default": "gemini-2.5-flash",
+      "options": [
+        { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash — default" },
+        { "id": "gemini-2.5-pro",   "label": "Gemini 2.5 Pro" }
+      ]
+    }
+  }
+}
