@@ -17,7 +17,7 @@ const required = [
   /body\s*\{[\s\S]*?min-width:\s*360px/,
   /#header[\s\S]*?display:\s*flex/,
   /#mascot[\s\S]*?animation:/,
-  /#declare-btn[\s\S]*?background:/,
+  /#btn-declare[\s\S]*?background:/,
   /\.cluster-card[\s\S]*?transform:/,
   /\.btn-keep[\s\S]*?background:/,
   /\.btn-save[\s\S]*?background:/,
@@ -30,6 +30,10 @@ const required = [
   /@media\s*\(\s*prefers-reduced-motion[\s\S]*?\.nuke-explode/,
   /@media\s*\(\s*prefers-reduced-motion[\s\S]*?\.spinner/,
   /@media\s*\(\s*prefers-reduced-motion[\s\S]*?\.pulse/,
+  /#view-error\.active[\s\S]*?display:\s*flex/,
+  /\.error-content[\s\S]*?background:\s*linear-gradient[\s\S]*?border:\s*1px solid/,
+  /\.error-actions[\s\S]*?grid-template-columns/,
+  /#view-error\s+\.btn-primary[\s\S]*?background:\s*linear-gradient/,
 ];
 
 let passed = 0;
