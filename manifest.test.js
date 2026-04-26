@@ -52,7 +52,13 @@ for (const wssHost of ['wss://api.puter.com', 'wss://*.puter.com']) {
 }
 // default_popup optional — onClicked opens full tab view
 if (!manifest.background?.service_worker) errors.push('background.service_worker required');
-if (!manifest.icons?.['48'] || !manifest.icons?.['128']) errors.push('icons 48 and 128 required');
+// Chrome Web Store wants all four icon sizes (16/32/48/128) for proper rendering
+// across the toolbar, extensions page, and store listing. The store icon (128) is
+// pulled directly from this manifest field — no separate upload.
+for (const size of ['16', '32', '48', '128']) {
+  if (!manifest.icons?.[size]) errors.push(`icons missing size ${size}`);
+  if (!manifest.action?.default_icon?.[size]) errors.push(`action.default_icon missing size ${size}`);
+}
 if (!manifest.content_security_policy?.extension_pages?.includes('connect-src')) errors.push('CSP connect-src required');
 if (!manifest.content_security_policy?.extension_pages?.includes('script-src')) errors.push('CSP script-src required');
 

@@ -186,19 +186,23 @@ A few pre-existing tests have known env limitations (`options.test.js` uses Jest
 
 No compilation step — the extension is plain HTML / CSS / ESM JS.
 
-**To package:**
+**To package for the Chrome Web Store:**
 
 ```bash
-zip -r tab-bankruptcy.zip . \
-  -x "*.test.js" "test/*" "docs/*" "node_modules/*" ".git/*"
+bash scripts/package.sh
 ```
 
-**Or pack in Chrome:**
+Outputs `dist/tab-bankruptcy-<version>.zip`. The script stages exactly the runtime files Chrome needs (no tests, no docs, no `.git`), then zips via `zip` if available or falls back to PowerShell's `Compress-Archive` on Windows. The zip is verified to be free of forbidden files before exit.
 
-1. `chrome://extensions` → **Pack extension**
-2. Select this folder → produces `.crx`
+For local development, just load the unpacked directory directly via `chrome://extensions` → Developer mode → Load unpacked.
 
-Upload the zip or crx to the Chrome Web Store via Developer Dashboard.
+### Publishing to the Chrome Web Store
+
+Step-by-step checklist: [`docs/store-submission-checklist.md`](./docs/store-submission-checklist.md)
+
+Paste-ready store listing copy (name, summary, description, single-purpose statement, per-permission justifications): [`docs/store-listing.md`](./docs/store-listing.md)
+
+Privacy policy users will see: [`PRIVACY.md`](./PRIVACY.md) (rendered URL: `https://github.com/dciconi/tab-bankruptcy/blob/main/PRIVACY.md`)
 
 ---
 
