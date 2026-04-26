@@ -13,6 +13,14 @@ async function loadLlm() {
 
 const $ = (id) => document.getElementById(id);
 
+// Preserve a previously-saved <select> value if its <option> still exists;
+// otherwise fall back to `fallback`. Lets us edit models.json freely without
+// silently overwriting a user's still-valid selection.
+function pickPreservedValue(selectEl, savedValue, fallback) {
+  const exists = Array.from(selectEl.options).some(o => o.value === savedValue);
+  return exists ? savedValue : fallback;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initPromptEditor();
   initMuteToggle();
@@ -172,7 +180,7 @@ async function initProviderConfig() {
     o.value = opt.id; o.textContent = opt.label;
     puterModelSelect.appendChild(o);
   }
-  puterModelSelect.value = sync.puterModel || MODELS.puter.default;
+  puterModelSelect.value = pickPreservedValue(puterModelSelect, sync.puterModel, MODELS.puter.default);
   puterModelSelect.addEventListener('change', () => {
     chrome.storage.sync.set({ puterModel: puterModelSelect.value });
   });
@@ -302,7 +310,7 @@ async function renderByokCards(MODELS, PROVIDERS, PROVIDER_LABELS, sync) {
       o.value = opt.id; o.textContent = opt.label;
       sel.appendChild(o);
     }
-    sel.value = modelDefault;
+    sel.value = pickPreservedValue(sel, byokModels[provider], MODELS[provider].default);
     container.appendChild(card);
   }
 
