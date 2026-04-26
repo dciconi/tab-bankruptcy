@@ -511,7 +511,7 @@ body.light-mode .progress-bar {
   width: 0%;
   background: linear-gradient(90deg, var(--accent), #60a5fa);
   border-radius: 999px;
-  transition: width 0.4s ease-out;
+  transition: width 200ms linear;
   box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
@@ -1491,6 +1491,25 @@ body.light-mode #view-idle .debt-badge {
   font-weight: 500;
 }
 
+/* Active provider info line */
+.active-provider-info {
+  margin: 8px 0 4px 0;
+  font-size: 12px;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.active-provider-info a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.active-provider-info a:hover { opacity: 1; }
+
 /* Floating tab particles background */
 #view-idle .particles-container {
   position: absolute;
@@ -1635,4 +1654,44 @@ body.light-mode #view-idle .debt-badge {
     animation: none;
     opacity: 0.3;
   }
+}
+
+/* Setup required view */
+.setup-required-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 16px;
+}
+.setup-required-content h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.setup-required-content p {
+  margin: 0;
+  opacity: 0.8;
+  max-width: 320px;
+}
+
+/* Multi-button error actions */
+.error-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 16px;
+}
+.btn-secondary {
+  background: transparent;
+  border: 1px solid currentColor;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.btn-secondary.hidden {
+  display: none;
 }

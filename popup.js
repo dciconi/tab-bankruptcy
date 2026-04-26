@@ -2,8 +2,18 @@
 // State machine: Idle → Loading → Triage → Completion
 
 import { playNuke, playKeep, playSave, playCompletion, loadMute } from './lib/audio.js';
+import {
+  clusterTabs,
+  PUTER_DASHBOARD_URL,
+  MODELS,
+  ApiKeyMissingError,
+  PuterNotSignedIn,
+  PuterOutOfCredits,
+  ClusterParseError,
+  LlmError
+} from './lib/llm/index.js';
 
-const STATES = { IDLE: 'idle', LOADING: 'loading', TRIAGE: 'triage', COMPLETION: 'completion', ERROR: 'error' };
+const STATES = { SETUP_REQUIRED: 'setup-required', IDLE: 'idle', LOADING: 'loading', TRIAGE: 'triage', COMPLETION: 'completion', ERROR: 'error' };
 
 let currentState = STATES.IDLE;
 let clusters = [];
@@ -128,16 +138,103 @@ function startLoading() {
   const msgEl = document.getElementById('loading-message');
   const progEl = document.getElementById('progress-fill');
   if (loadingInterval) clearInterval(loadingInterval);
+  const startedAt = performance.now();
   loadingInterval = setInterval(() => {
     if (msgEl) msgEl.textContent = LOADING_MESSAGES[i % LOADING_MESSAGES.length];
-    if (progEl) progEl.style.width = `${Math.min(100, (i + 1) * 25)}%`;
     i++;
   }, 1200);
-  console.log('[popup] sending {action: "cluster"} to background');
-  // Send cluster request to background
-  chrome.runtime.sendMessage({ action: 'cluster' }, (resp) => {
-    console.log('[popup] cluster request response:', resp);
+
+  // Asymptotic progress: ~50% at 3s, ~75% at 6s, ~90% at 12s, capped at 95%.
+  // Snaps to 100% when clusters render (see renderClusters).
+  function tickProgress() {
+    if (currentState !== STATES.LOADING) return;
+    const elapsedSec = (performance.now() - startedAt) / 1000;
+    const pct = 95 * (1 - Math.exp(-elapsedSec / 5));
+    if (progEl) progEl.style.width = pct.toFixed(1) + '%';
+    requestAnimationFrame(tickProgress);
+  }
+  requestAnimationFrame(tickProgress);
+  runClusterFlow().catch(err => {
+    console.error('[popup] cluster flow error:', err);
+    handleClusterError(err);
   });
+}
+
+async function runClusterFlow() {
+  // 1. Ask background for tabs (or cached payload)
+  const tabResp = await new Promise(resolve => {
+    chrome.runtime.sendMessage({ action: 'getTabsForCluster' }, resolve);
+  });
+  if (!tabResp?.ok) throw new Error(tabResp?.error || 'Failed to get tabs');
+  if (tabResp.cached) {
+    renderClusters(tabResp.payload);
+    return;
+  }
+  // 2. Load merged settings (sync + local)
+  const sync = await new Promise(r => chrome.storage.sync.get(null, r));
+  const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+  const settings = {
+    provider: sync.provider || 'puter',
+    puterModel: sync.puterModel || MODELS.puter.default,
+    customPrompt: sync.customPrompt || '',
+    byokKeys: Array.isArray(local.byokKeys) ? local.byokKeys : [],
+    // Persist verification status as keys are tried in fallback order.
+    onKeyStatus: async (keyId, status, errMessage) => {
+      const cur = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+      const list = Array.isArray(cur.byokKeys) ? cur.byokKeys : [];
+      const idx = list.findIndex(k => k.id === keyId);
+      if (idx === -1) return;
+      list[idx] = {
+        ...list[idx],
+        status,
+        lastTestedAt: Date.now(),
+        lastError: errMessage || null
+      };
+      await new Promise(r => chrome.storage.local.set({ byokKeys: list }, r));
+    }
+  };
+  // 3. Run the LLM
+  const clusters = await clusterTabs(tabResp.tabs, settings);
+  // 4. Commit clusters back to background
+  await new Promise(resolve => {
+    chrome.runtime.sendMessage(
+      { action: 'commitClusters', clusters, sig: tabResp.sig },
+      resolve
+    );
+  });
+  // 5. Render
+  renderClusters({ type: 'clusters', clusters });
+}
+
+function handleClusterError(err) {
+  const provider = err?.provider || '';
+  if (err instanceof PuterNotSignedIn) {
+    showError({
+      message: 'You need to sign in to Puter to cluster tabs. Set it up in Settings, or switch to your own API key.',
+      showSettings: true
+    });
+  } else if (err instanceof PuterOutOfCredits) {
+    showError({
+      message: "You're out of Puter credits. Top up at puter.com/dashboard, or switch to BYOK in Settings.",
+      showPuterDashboard: true,
+      showSettings: true
+    });
+  } else if (err instanceof ApiKeyMissingError) {
+    showError({
+      message: `No API key for ${provider}. Add one in Settings.`,
+      showSettings: true
+    });
+  } else if (err instanceof LlmError && err.kind === 'auth') {
+    showError({ message: err.message + '. Update it in Settings.', showSettings: true });
+  } else if (err instanceof LlmError && err.kind === 'rate_limit') {
+    showError({ message: err.message + '. Try again in a moment.' });
+  } else if (err instanceof LlmError && err.kind === 'network') {
+    showError({ message: `Couldn't reach the model. Retry?` });
+  } else if (err instanceof ClusterParseError) {
+    showError({ message: 'Model returned an unexpected response. Try again?' });
+  } else {
+    showError({ message: err?.message || 'Unknown error' });
+  }
 }
 
 function renderClusterCard(cluster) {
@@ -476,6 +573,9 @@ function renderClusters(data) {
     clearInterval(loadingInterval);
     loadingInterval = null;
   }
+  // Snap progress to 100% so the bar visually completes before triage swaps in.
+  const progEl = document.getElementById('progress-fill');
+  if (progEl) progEl.style.width = '100%';
   let clusterList = data.clusters || [];
   // 0 clusters → fallback to single "Uncategorized" cluster
   if (clusterList.length === 0) {
@@ -559,30 +659,28 @@ function triggerActionOnCard(card, action) {
   if (btn) btn.click();
 }
 
-function showError(msg) {
+function showError(opts) {
   if (loadingInterval) {
     clearInterval(loadingInterval);
     loadingInterval = null;
   }
+  // Snap progress to 100% so the bar doesn't look stuck on error.
+  const progElErr = document.getElementById('progress-fill');
+  if (progElErr) progElErr.style.width = '100%';
+  const message = typeof opts === 'string' ? opts : (opts?.message || 'Something went wrong.');
+  const showSettings = typeof opts === 'object' && !!opts?.showSettings;
+  const showPuterDashboard = typeof opts === 'object' && !!opts?.showPuterDashboard;
   const errEl = document.getElementById('error-message');
-  if (errEl) errEl.textContent = msg || 'Grok unavailable. Try again?';
+  if (errEl) errEl.textContent = message;
+  const settingsBtn = document.getElementById('btn-open-settings');
+  const dashBtn = document.getElementById('btn-open-puter-dashboard');
+  if (settingsBtn) settingsBtn.classList.toggle('hidden', !showSettings);
+  if (dashBtn) dashBtn.classList.toggle('hidden', !showPuterDashboard);
   setState(STATES.ERROR);
 }
 
 function handleMessage(msg) {
-  console.log('[popup] handleMessage received:', msg);
-  if (msg.type === 'clusters') {
-    console.log('[popup] clusters received:', msg.clusters?.length || 0, 'clusters');
-    if (msg.warning) showWarning(msg.warning);
-    renderClusters(msg);
-  } else if (msg.type === 'error') {
-    console.error('[popup] error from background:', msg.message);
-    showError(msg.message);
-  } else if (msg.type === 'warning') {
-    console.warn('[popup] warning:', msg.message);
-    showWarning(msg.message);
-  } else if (msg.type === 'actionDone') {
-    console.log('[popup] actionDone, resolvedClusters:', resolvedClusters, 'total:', totalClusters);
+  if (msg?.type === 'actionDone') {
     if (resolvedClusters >= totalClusters) {
       triggerConfetti();
       showCompletion();
@@ -636,6 +734,70 @@ function applyTheme() {
   });
 }
 
+async function refreshActiveProviderInfo() {
+  const textEl = document.getElementById('active-provider-text');
+  const changeEl = document.getElementById('active-provider-change');
+  if (!textEl) return;
+
+  // Wire the "Change" link to open options page
+  if (changeEl) {
+    changeEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+  }
+
+  // Load merged settings
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'puterModel'], r));
+  const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+
+  const provider = sync.provider || 'puter';
+  let displayText = 'Setup required';
+
+  if (provider === 'puter') {
+    const modelId = sync.puterModel || MODELS.puter.default;
+    const option = MODELS.puter.options.find(o => o.id === modelId);
+    const modelLabel = option ? option.label : modelId;
+    displayText = `Using Puter · ${modelLabel}`;
+  } else {
+    const byokKeys = Array.isArray(local.byokKeys) ? local.byokKeys : [];
+    if (byokKeys.length > 0) {
+      const key = byokKeys[0];
+      displayText = `Using BYOK · ${key.label} · ${key.model}`;
+    }
+  }
+
+  textEl.textContent = displayText;
+}
+
+async function reconcileSetupComplete() {
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'setupComplete'], r));
+  if (sync.setupComplete === true) return; // already done
+
+  // BYOK with at least one key -> considered set up.
+  if (sync.provider === 'byok') {
+    const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+    if (Array.isArray(local.byokKeys) && local.byokKeys.length > 0) {
+      await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+      return;
+    }
+  }
+
+  // Puter mode (default if unset) and signed in -> considered set up.
+  if (sync.provider === 'puter' || !sync.provider) {
+    if (typeof window !== 'undefined' && window.puter) {
+      try {
+        const isIn = await window.puter.auth.isSignedIn();
+        if (isIn) {
+          await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+          return;
+        }
+      } catch {}
+    }
+  }
+  // Otherwise leave setupComplete falsy — popup gate will fire as expected.
+}
+
 async function init() {
   console.log('[popup] init() called, DOM ready');
   console.log('[popup] currentState init:', currentState);
@@ -651,10 +813,27 @@ async function init() {
     console.log('[popup] resume response:', resp);
   });
 
+  // Reconcile setup state before checking gate (handles users with valid configs
+  // who lost setupComplete=true due to migration or extension update).
+  await reconcileSetupComplete();
+
+  // Check setup gate
+  const setupCheck = await new Promise(r => chrome.storage.sync.get(['setupComplete'], r));
+  if (!setupCheck.setupComplete) {
+    setState(STATES.SETUP_REQUIRED);
+    const btnOpenSetup = document.getElementById('btn-open-setup');
+    if (btnOpenSetup) {
+      btnOpenSetup.addEventListener('click', () => {
+        chrome.runtime.openOptionsPage();
+      });
+    }
+    return; // skip idle wiring; user must complete setup first
+  }
+
   // Idle
   updateIdleTabCount();
-  console.log('[popup] setState -> IDLE');
   setState(STATES.IDLE);
+  refreshActiveProviderInfo();
 
   // Declare Bankruptcy (with ARIA)
   const btnDeclare = document.getElementById('btn-declare');
@@ -692,6 +871,19 @@ async function init() {
     btnRetry.addEventListener('click', () => {
       setState(STATES.IDLE);
       startLoading();
+    });
+  }
+
+  const btnOpenSettings = document.getElementById('btn-open-settings');
+  if (btnOpenSettings) {
+    btnOpenSettings.addEventListener('click', () => {
+      chrome.runtime.openOptionsPage();
+    });
+  }
+  const btnOpenDash = document.getElementById('btn-open-puter-dashboard');
+  if (btnOpenDash) {
+    btnOpenDash.addEventListener('click', () => {
+      chrome.tabs.create({ url: PUTER_DASHBOARD_URL });
     });
   }
 

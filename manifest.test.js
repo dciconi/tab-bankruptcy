@@ -13,7 +13,43 @@ if (manifest.manifest_version !== 3) errors.push('manifest_version must be 3');
 if (!manifest.permissions.includes('tabs')) errors.push('permissions must include "tabs"');
 if (!manifest.permissions.includes('storage')) errors.push('permissions must include "storage"');
 if (!manifest.permissions.includes('tabGroups')) errors.push('permissions must include "tabGroups"');
-if (!manifest.host_permissions?.some(h => h.includes('autoqa.teachx.ai'))) errors.push('host_permissions must include autoqa.teachx.ai');
+// host_permissions includes all four BYOK providers + Puter
+const expectedHosts = [
+  'https://api.x.ai/*',
+  'https://api.openai.com/*',
+  'https://api.anthropic.com/*',
+  'https://generativelanguage.googleapis.com/*',
+  'https://api.puter.com/*',
+  'https://*.puter.com/*'
+];
+for (const h of expectedHosts) {
+  if (!manifest.host_permissions || !manifest.host_permissions.includes(h)) {
+    errors.push(`host_permissions missing ${h}`);
+  }
+}
+
+// Legacy proxy host is gone
+if (manifest.host_permissions?.some(h => h.includes('autoqa.teachx.ai'))) {
+  errors.push('host_permissions still includes legacy autoqa.teachx.ai');
+}
+
+// CSP connect-src lists all expected hosts and not the legacy one
+const csp = manifest.content_security_policy?.extension_pages || '';
+if (csp.includes('autoqa.teachx.ai')) {
+  errors.push('CSP still references legacy autoqa.teachx.ai');
+}
+for (const host of ['api.x.ai', 'api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com', 'api.puter.com']) {
+  if (!csp.includes(host)) {
+    errors.push(`CSP connect-src missing ${host}`);
+  }
+}
+// Puter SDK uses Socket.IO over WebSocket for real-time events; CSP must
+// allow wss:// to api.puter.com or the page logs noisy violation errors.
+for (const wssHost of ['wss://api.puter.com', 'wss://*.puter.com']) {
+  if (!csp.includes(wssHost)) {
+    errors.push(`CSP connect-src missing ${wssHost}`);
+  }
+}
 // default_popup optional — onClicked opens full tab view
 if (!manifest.background?.service_worker) errors.push('background.service_worker required');
 if (!manifest.icons?.['48'] || !manifest.icons?.['128']) errors.push('icons 48 and 128 required');

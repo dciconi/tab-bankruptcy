@@ -14,8 +14,126 @@
         <h1>Settings</h1>
         <p class="tagline">Configure your bankruptcy preferences</p>
       </div>
-      <div class="header-badge">v1.0</div>
+      <div class="header-badge">beta</div>
     </header>
+
+    <!-- Welcome (shown when ?welcome=1 OR setupComplete=false) -->
+    <section id="welcome-section" class="section hidden">
+      <div class="section-header">
+        <span class="section-icon">👋</span>
+        <div>
+          <h2>Welcome to Tab Bankruptcy</h2>
+          <p class="section-subtitle">Pick how you want to call the AI before declaring bankruptcy.</p>
+        </div>
+      </div>
+      <div class="welcome-body">
+        <p class="welcome-note">
+          Pick how you want to call the AI below. As soon as you sign in to Puter
+          or save a working API key, you're all set — Tab Bankruptcy will start
+          clustering automatically.
+        </p>
+      </div>
+    </section>
+
+    <!-- AI Provider -->
+    <section id="provider-section" class="section">
+      <div class="section-header">
+        <span class="section-icon">🤖</span>
+        <div>
+          <h2>AI Provider</h2>
+          <p class="section-subtitle">Default is Puter (sign in once, pay-as-you-go). Power users can BYOK.</p>
+        </div>
+      </div>
+
+      <div class="provider-radio-row">
+        <label><input type="radio" name="provider" value="puter" checked /> <span>Puter (recommended)</span></label>
+        <label><input type="radio" name="provider" value="byok" /> <span>Bring your own key (BYOK)</span></label>
+      </div>
+
+      <!-- Puter subsection -->
+      <div id="puter-config" class="provider-subsection">
+        <div class="puter-about">
+          <h3>About Puter</h3>
+          <p>
+            <a href="https://puter.com" target="_blank" rel="noopener">Puter</a>
+            is a third-party web platform that bundles pay-as-you-go access to AI
+            models. You sign in once with your Puter account, and Tab Bankruptcy
+            uses it to call Grok, Claude, GPT, or Gemini on your behalf.
+          </p>
+          <p>
+            <strong>Billing:</strong> Puter charges your Puter account directly
+            for AI usage — typically a fraction of a cent per cluster.
+          </p>
+          <p class="puter-trust-note">
+            <span class="trust-icon" aria-hidden="true">✓</span>
+            <span>
+              <strong>Tab Bankruptcy is free.</strong> The developer takes no
+              cut and never sees your billing or usage details.
+            </span>
+          </p>
+          <p>
+            Manage your usage and top-ups at the
+            <a href="https://puter.com/dashboard" target="_blank" rel="noopener">Puter dashboard</a>.
+          </p>
+        </div>
+        <div class="puter-status">
+          <span id="puter-status-text">Checking sign-in…</span>
+          <button id="btn-puter-signin" class="btn btn-primary">Sign in to Puter</button>
+          <button id="btn-puter-signout" class="btn btn-secondary hidden">Sign out</button>
+        </div>
+        <label class="select-row">
+          <div class="select-label">
+            <span class="select-title">Default model</span>
+            <span class="select-desc">Choose the Puter model used for tab clustering</span>
+          </div>
+          <select id="puter-model"></select>
+        </label>
+        <button id="btn-puter-test" class="btn btn-secondary">Test connection</button>
+        <span id="puter-test-result" class="test-result"></span>
+      </div>
+
+      <!-- BYOK subsection -->
+      <div id="byok-config" class="provider-subsection hidden">
+        <div class="byok-intro">
+          <h3>Your API keys</h3>
+          <p class="byok-help">
+            Add one or more API keys. Keys are tried in order: the top key is the
+            default; if it fails, the next is tried automatically. Use the up/down
+            arrows on each row to change the order.
+          </p>
+          <p class="hint">Keys never leave this device.</p>
+        </div>
+        <div id="byok-list" class="byok-list"></div>
+        <div id="byok-empty" class="byok-empty hidden">
+          No API keys yet. Click <strong>Add API key</strong> below to create one.
+        </div>
+        <div id="byok-add-form" class="byok-form hidden">
+          <h4>Add API key</h4>
+          <label class="byok-form-row">
+            <span>Label</span>
+            <input type="text" id="byok-form-label" placeholder="e.g. Personal xAI" maxlength="60">
+          </label>
+          <label class="byok-form-row">
+            <span>Provider</span>
+            <select id="byok-form-provider"></select>
+          </label>
+          <label class="byok-form-row">
+            <span>Model</span>
+            <select id="byok-form-model"></select>
+          </label>
+          <label class="byok-form-row">
+            <span>API key</span>
+            <input type="password" id="byok-form-key" placeholder="sk-..." autocomplete="off">
+          </label>
+          <div class="byok-form-actions">
+            <button id="btn-byok-save" class="btn btn-primary">Save & Test</button>
+            <button id="btn-byok-cancel" class="btn btn-text">Cancel</button>
+            <span id="byok-form-result" class="test-result"></span>
+          </div>
+        </div>
+        <button id="btn-byok-add" class="btn btn-secondary">+ Add API key</button>
+      </div>
+    </section>
 
     <!-- Custom Prompt -->
     <section class="section">
@@ -85,11 +203,36 @@
       </label>
     </section>
 
+    <!-- Reset -->
+    <section class="section">
+      <div class="section-header">
+        <span class="section-icon">⚠️</span>
+        <div>
+          <h2>Reset</h2>
+          <p class="section-subtitle">Return to first-run state</p>
+        </div>
+      </div>
+      <p class="reset-explainer">
+        Resetting will wipe everything and return the extension to its first-run state:
+      </p>
+      <ul class="reset-list">
+        <li>Delete every saved BYOK API key</li>
+        <li>Sign you out of Puter</li>
+        <li>Clear all preferences (provider, model, custom prompt, sound, theme)</li>
+        <li>Clear cached cluster state and processed-tab history</li>
+        <li>Trigger the welcome / setup gate on next open</li>
+      </ul>
+      <div class="reset-actions">
+        <button id="btn-reset" class="btn btn-danger">Reset everything</button>
+        <span id="reset-result" class="test-result"></span>
+      </div>
+    </section>
+
     <footer class="footer">
       <div class="footer-inner">
         <span class="footer-brand">Tab Bankruptcy</span>
         <span class="footer-sep">·</span>
-        <span class="footer-link" id="footer-version">v1.0</span>
+        <span class="footer-link" id="footer-version">beta</span>
         <span class="footer-sep">·</span>
         <a href="#" class="footer-link" id="footer-help">Help</a>
         <span class="footer-sep">·</span>
@@ -99,6 +242,7 @@
     </footer>
   </div>
 
+  <script src="lib/puter.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
