@@ -198,8 +198,6 @@ The IndexedDB-backed reading list in lib/storage.js was superseded by
 chrome.readingList in v1 and never re-wired. Delete the module, its
 test, and the README references. The chrome.readingList path in
 background.js is unchanged and remains the live save/restore path.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -292,8 +290,6 @@ MV3 CSP forbids loading remote scripts. Ship Puter.js as a vendored file
 under lib/. SHA-256 and fetch date pinned in lib/puter.VERSION; AGPL-3.0
 license noted in lib/puter.LICENSE. Update process documented in
 docs/maintenance/puter-sdk-updates.md (added in a follow-up task).
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -446,9 +442,7 @@ Expected: `errors.test.js passed`.
 
 ```bash
 git add lib/llm/package.json lib/llm/errors.js lib/llm/errors.test.js
-git commit -m "feat: add LLM error taxonomy
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add LLM error taxonomy"
 ```
 
 ### Task 2.4: Create `lib/llm/prompt.js` + test
@@ -557,9 +551,7 @@ Expected: `prompt.test.js passed`.
 
 ```bash
 git add lib/llm/prompt.js lib/llm/prompt.test.js
-git commit -m "feat: add LLM message builder with field whitelist
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add LLM message builder with field whitelist"
 ```
 
 ### Task 2.5: Create `lib/llm/parse.js` + test
@@ -673,9 +665,7 @@ Expected: `parse.test.js passed`.
 
 ```bash
 git add lib/llm/parse.js lib/llm/parse.test.js
-git commit -m "feat: add robust JSON cluster parser
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add robust JSON cluster parser"
 ```
 
 ### Task 2.6: Create `lib/llm/models.js`
@@ -775,9 +765,7 @@ Expected output: `[ 'puter', 'xai', 'openai', 'anthropic', 'google' ]`.
 
 ```bash
 git add lib/llm/models.js
-git commit -m "feat: add curated model lists with cheap-fast defaults
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add curated model lists with cheap-fast defaults"
 ```
 
 ### Task 2.7: Create `lib/llm/byok/xai.js` + test
@@ -916,9 +904,7 @@ Expected: `byok/xai.test.js passed`.
 
 ```bash
 git add lib/llm/byok/xai.js lib/llm/byok/xai.test.js
-git commit -m "feat: add xAI BYOK adapter
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add xAI BYOK adapter"
 ```
 
 ### Task 2.8: Create `lib/llm/byok/openai.js` + test
@@ -1045,9 +1031,7 @@ Run: `node lib/llm/byok/openai.test.js`
 
 ```bash
 git add lib/llm/byok/openai.js lib/llm/byok/openai.test.js
-git commit -m "feat: add OpenAI BYOK adapter
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add OpenAI BYOK adapter"
 ```
 
 ### Task 2.9: Create `lib/llm/byok/anthropic.js` + test
@@ -1193,9 +1177,7 @@ Run: `node lib/llm/byok/anthropic.test.js`
 
 ```bash
 git add lib/llm/byok/anthropic.js lib/llm/byok/anthropic.test.js
-git commit -m "feat: add Anthropic BYOK adapter (with browser-access header)
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add Anthropic BYOK adapter (with browser-access header)"
 ```
 
 ### Task 2.10: Create `lib/llm/byok/google.js` + test
@@ -1325,9 +1307,7 @@ Run: `node lib/llm/byok/google.test.js`
 
 ```bash
 git add lib/llm/byok/google.js lib/llm/byok/google.test.js
-git commit -m "feat: add Google Gemini BYOK adapter
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add Google Gemini BYOK adapter"
 ```
 
 ### Task 2.11: Create `lib/llm/byok-provider.js` + test
@@ -1457,9 +1437,7 @@ Run: `node lib/llm/byok-provider.test.js`
 
 ```bash
 git add lib/llm/byok-provider.js lib/llm/byok-provider.test.js
-git commit -m "feat: add BYOK dispatcher
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add BYOK dispatcher"
 ```
 
 ### Task 2.12: Create `lib/llm/puter-provider.js` + test
@@ -1634,9 +1612,7 @@ Run: `node lib/llm/puter-provider.test.js`
 
 ```bash
 git add lib/llm/puter-provider.js lib/llm/puter-provider.test.js
-git commit -m "feat: add Puter provider with credit-error wrap
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add Puter provider with credit-error wrap"
 ```
 
 ### Task 2.13: Create `lib/llm/index.js` (top-level entry) + test
@@ -1733,9 +1709,7 @@ Run: `node lib/llm/index.test.js`
 
 ```bash
 git add lib/llm/index.js lib/llm/index.test.js
-git commit -m "feat: add LLM module entry point
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "feat: add LLM module entry point"
 ```
 
 ### Task 2.14: Run the full LLM test suite
@@ -1844,9 +1818,7 @@ The agent fetches `https://js.puter.com/v2/`, computes its SHA-256, compares aga
 
 ```bash
 git add docs/maintenance/puter-sdk-updates.md
-git commit -m "docs: add Puter SDK update process
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "docs: add Puter SDK update process"
 ```
 
 ---
@@ -1951,13 +1923,11 @@ Expected: prints "manifest validation passed" (or whatever the existing success 
 
 ```bash
 git add manifest.json manifest.test.js
-git commit -m "feat: replace proxy hostname with BYOK + Puter hosts
+git commit -m "feat: replace proxy hostname with BYOK + Puter hosts"
 
 Removes autoqa.teachx.ai from host_permissions and CSP. Adds the four
 BYOK provider hosts and Puter. script-src stays at 'self' — Puter SDK
 is vendored, no remote scripts.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ### Task 3.3: Refactor `background.js` — remove proxy, add new action protocol
@@ -2206,13 +2176,11 @@ If failures relate to legacy assertions about `PROXY_URL` or `handleClusterReque
 
 ```bash
 git add background.js background.test.js
-git commit -m "refactor: replace proxy fetch with getTabsForCluster + commitClusters
+git commit -m "refactor: replace proxy fetch with getTabsForCluster + commitClusters"
 
 Background no longer holds the LLM call; it provides tab data and stores
 results. Adds onInstalled with v1->v2 setupComplete reset. PROXY_URL,
 handleClusterRequest, and fetchWithRetry are gone.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ### Task 3.5: Write `docs/maintenance/v2-migration.md`
@@ -2275,9 +2243,7 @@ If neither applies, leave for another cycle.
 
 ```bash
 git add docs/maintenance/v2-migration.md
-git commit -m "docs: document v1->v2 forced re-setup and removal criteria
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "docs: document v1->v2 forced re-setup and removal criteria"
 ```
 
 ---
@@ -2688,15 +2654,13 @@ Expected: all assertions pass. If the existing test file is structured around mo
 
 ```bash
 git add popup.html popup.js popup.test.js
-git commit -m "feat: move LLM call into popup; add setup gate and error UI
+git commit -m "feat: move LLM call into popup; add setup gate and error UI"
 
 Popup now performs the LLM call directly via lib/llm/index.js, using
 either the vendored Puter SDK or BYOK adapters. Adds a setup-required
 view shown when settings.setupComplete is false. Replaces the old single
 'try again' error UI with a taxonomy-aware view supporting Puter dashboard
 and Settings actions.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ### Task 4.4: Add `popup.css` styling for setup-required view
@@ -2754,9 +2718,7 @@ At the end of `popup.css`, append:
 
 ```bash
 git add popup.css
-git commit -m "style: add setup-required view and multi-button error actions
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "style: add setup-required view and multi-button error actions"
 ```
 
 ---
@@ -3299,15 +3261,13 @@ Expected: all assertions pass plus existing tests continue to pass.
 
 ```bash
 git add options.html options.js options.test.js
-git commit -m "feat: add provider config + welcome / first-run gate
+git commit -m "feat: add provider config + welcome / first-run gate"
 
 Adds Puter sign-in/out and model selection, four BYOK provider sub-cards
 with key entry / Test / Clear, and a welcome section gating setupComplete.
 Keys live in chrome.storage.local; provider/model selections in
 chrome.storage.sync. Includes auto-flip of setupComplete=false when the
 active provider's key is cleared or the user signs out of Puter.
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ### Task 5.5: Add `options.css` styling for new sections
@@ -3425,9 +3385,7 @@ body.light-mode .byok-key { background: rgba(0,0,0,0.04); border-color: rgba(0,0
 
 ```bash
 git add options.css
-git commit -m "style: add welcome / provider config layout
-
-Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
+git commit -m "style: add welcome / provider config layout"
 ```
 
 ---
