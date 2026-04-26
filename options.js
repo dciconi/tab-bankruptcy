@@ -21,12 +21,42 @@ function pickPreservedValue(selectEl, savedValue, fallback) {
   return exists ? savedValue : fallback;
 }
 
+async function reconcileSetupComplete() {
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'setupComplete'], r));
+  if (sync.setupComplete === true) return; // already done
+
+  // BYOK with at least one key -> considered set up.
+  if (sync.provider === 'byok') {
+    const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+    if (Array.isArray(local.byokKeys) && local.byokKeys.length > 0) {
+      await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+      return;
+    }
+  }
+
+  // Puter mode (default if unset) and signed in -> considered set up.
+  if (sync.provider === 'puter' || !sync.provider) {
+    if (typeof window !== 'undefined' && window.puter) {
+      try {
+        const isIn = await window.puter.auth.isSignedIn();
+        if (isIn) {
+          await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+          return;
+        }
+      } catch {}
+    }
+  }
+  // Otherwise leave setupComplete falsy — popup gate will fire as expected.
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initPromptEditor();
   initMuteToggle();
   initThemeToggle();
   await initProviderConfig();
+  await reconcileSetupComplete();
   await initWelcomeGate();
+  wireResetButton();
 });
 
 function initPromptEditor() {
@@ -637,5 +667,42 @@ async function initWelcomeGate() {
   const sync = await new Promise(r => chrome.storage.sync.get(['setupComplete'], r));
   const showWelcome = params.get('welcome') === '1' || !sync.setupComplete;
   $('welcome-section').classList.toggle('hidden', !showWelcome);
+}
+
+function wireResetButton() {
+  const btn = $('btn-reset');
+  if (!btn) return;
+  const result = $('reset-result');
+  btn.addEventListener('click', async () => {
+    const ok = confirm(
+      "Reset AI settings?\n\n" +
+      "This will delete every saved BYOK API key, sign you out of Puter, " +
+      "and clear your provider and model selections. Your custom prompt, " +
+      "sound, and theme preferences will be kept."
+    );
+    if (!ok) return;
+    btn.disabled = true;
+    result.textContent = '… resetting';
+    try {
+      // Sign out of Puter if signed in. Tolerate failures.
+      if (window.puter && window.puter.auth) {
+        try {
+          if (await window.puter.auth.isSignedIn()) {
+            await window.puter.auth.signOut();
+          }
+        } catch {}
+      }
+      // Clear AI-related storage. Leave customPrompt, muted, theme alone.
+      const localKeysToClear = ['byokKeys', 'apiKeys', 'apiKeysVerified'];
+      const syncKeysToClear = ['provider', 'puterModel', 'byokProvider', 'byokModels', 'setupComplete'];
+      await new Promise(r => chrome.storage.local.remove(localKeysToClear, r));
+      await new Promise(r => chrome.storage.sync.remove(syncKeysToClear, r));
+      result.textContent = '✓ Done — reloading';
+      setTimeout(() => location.reload(), 700);
+    } catch (e) {
+      result.textContent = '✗ ' + (e?.message || e);
+      btn.disabled = false;
+    }
+  });
 }
 

@@ -770,6 +770,34 @@ async function refreshActiveProviderInfo() {
   textEl.textContent = displayText;
 }
 
+async function reconcileSetupComplete() {
+  const sync = await new Promise(r => chrome.storage.sync.get(['provider', 'setupComplete'], r));
+  if (sync.setupComplete === true) return; // already done
+
+  // BYOK with at least one key -> considered set up.
+  if (sync.provider === 'byok') {
+    const local = await new Promise(r => chrome.storage.local.get(['byokKeys'], r));
+    if (Array.isArray(local.byokKeys) && local.byokKeys.length > 0) {
+      await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+      return;
+    }
+  }
+
+  // Puter mode (default if unset) and signed in -> considered set up.
+  if (sync.provider === 'puter' || !sync.provider) {
+    if (typeof window !== 'undefined' && window.puter) {
+      try {
+        const isIn = await window.puter.auth.isSignedIn();
+        if (isIn) {
+          await new Promise(r => chrome.storage.sync.set({ setupComplete: true }, r));
+          return;
+        }
+      } catch {}
+    }
+  }
+  // Otherwise leave setupComplete falsy — popup gate will fire as expected.
+}
+
 async function init() {
   console.log('[popup] init() called, DOM ready');
   console.log('[popup] currentState init:', currentState);
@@ -784,6 +812,10 @@ async function init() {
   chrome.runtime.sendMessage({action: 'resume'}, (resp) => {
     console.log('[popup] resume response:', resp);
   });
+
+  // Reconcile setup state before checking gate (handles users with valid configs
+  // who lost setupComplete=true due to migration or extension update).
+  await reconcileSetupComplete();
 
   // Check setup gate
   const setupCheck = await new Promise(r => chrome.storage.sync.get(['setupComplete'], r));

@@ -195,6 +195,33 @@
       </label>
     </section>
 
+    <!-- Reset -->
+    <section class="section">
+      <div class="section-header">
+        <span class="section-icon">⚠️</span>
+        <div>
+          <h2>Reset</h2>
+          <p class="section-subtitle">Return to first-run state</p>
+        </div>
+      </div>
+      <p class="reset-explainer">
+        Resetting will:
+      </p>
+      <ul class="reset-list">
+        <li>Delete every saved BYOK API key</li>
+        <li>Sign you out of Puter</li>
+        <li>Clear your provider and model selections</li>
+        <li>Trigger the welcome / setup gate on next open</li>
+      </ul>
+      <p class="reset-explainer">
+        Your custom prompt, sound, and theme preferences are kept.
+      </p>
+      <div class="reset-actions">
+        <button id="btn-reset" class="btn btn-danger">Reset AI settings</button>
+        <span id="reset-result" class="test-result"></span>
+      </div>
+    </section>
+
     <footer class="footer">
       <div class="footer-inner">
         <span class="footer-brand">Tab Bankruptcy</span>

@@ -31,7 +31,6 @@ These are settled — re-open only with a strong reason.
 
 - **Surface Puter per-call cost in the model dropdown.** Out of scope for v2; revisit when Puter exposes a pricing API. Suggested label format: `Grok mini · ~$0.0002 / cluster`.
 - **Puter SDK drift check** — schedule a 90-day recurring agent to compare `https://js.puter.com/v2/` SHA-256 against `lib/puter.VERSION` and open a PR on drift.
-- **v2-migration code removal** — the `if (details.reason === 'update')` branch in `background.js` (marked `REMOVE-IN-V3:`) should be deleted in v3 or after ~2 release cycles. See `docs/maintenance/v2-migration.md`.
 - **5th BYOK provider (DeepSeek / Mistral / Groq Cloud).** Adapter pattern in `lib/llm/byok/` is built to make this a one-file addition. No commitment yet — add when there's user demand.
 
 ## Conventions worth knowing before editing
