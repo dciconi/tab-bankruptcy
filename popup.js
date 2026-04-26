@@ -210,17 +210,23 @@ function handleClusterError(err) {
   const provider = err?.provider || '';
   if (err instanceof PuterNotSignedIn) {
     showError({
+      title: 'Puter sign-in needed',
+      icon: '🔐',
       message: 'You need to sign in to Puter to cluster tabs. Set it up in Settings, or switch to your own API key.',
       showSettings: true
     });
   } else if (err instanceof PuterOutOfCredits) {
     showError({
-      message: "You're out of Puter credits. Top up at puter.com/dashboard, or switch to BYOK in Settings.",
+      title: 'Puter credits are empty',
+      icon: '💳',
+      message: "Top up your Puter account, or switch to BYOK in Settings to keep clustering with your own API key.",
       showPuterDashboard: true,
       showSettings: true
     });
   } else if (err instanceof ApiKeyMissingError) {
     showError({
+      title: 'API key needed',
+      icon: '🔑',
       message: `No API key for ${provider}. Add one in Settings.`,
       showSettings: true
     });
@@ -668,9 +674,15 @@ function showError(opts) {
   const progElErr = document.getElementById('progress-fill');
   if (progElErr) progElErr.style.width = '100%';
   const message = typeof opts === 'string' ? opts : (opts?.message || 'Something went wrong.');
+  const title = typeof opts === 'object' && opts?.title ? opts.title : 'Something went wrong';
+  const icon = typeof opts === 'object' && opts?.icon ? opts.icon : '⚠️';
   const showSettings = typeof opts === 'object' && !!opts?.showSettings;
   const showPuterDashboard = typeof opts === 'object' && !!opts?.showPuterDashboard;
+  const titleEl = document.getElementById('error-title');
+  const iconEl = document.getElementById('error-icon');
   const errEl = document.getElementById('error-message');
+  if (titleEl) titleEl.textContent = title;
+  if (iconEl) iconEl.textContent = icon;
   if (errEl) errEl.textContent = message;
   const settingsBtn = document.getElementById('btn-open-settings');
   const dashBtn = document.getElementById('btn-open-puter-dashboard');
