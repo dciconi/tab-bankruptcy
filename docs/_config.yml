@@ -1,0 +1,18 @@
+title: Tab Bankruptcy
+description: One-click AI clustering and triage for browser tabs.
+url: https://dciconi.github.io
+baseurl: /tab-bankruptcy
+
+# Use a built-in GitHub Pages theme so we don't need a Gemfile.
+theme: jekyll-theme-cayman
+
+# Internal-only docs that should NOT render to the public Pages site.
+# Everything else under /docs is published.
+exclude:
+  - maintenance/
+  - superpowers/
+  - store-listing.md
+  - store-submission-checklist.md
+
+# Pretty URLs: /privacy.md → /privacy/
+permalink: pretty

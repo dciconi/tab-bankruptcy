@@ -1,10 +1,20 @@
+---
+layout: default
+title: Privacy Policy
+description: What Tab Bankruptcy does (and doesn't) with your data
+permalink: /privacy/
+---
+
+<!-- IMPORTANT: This file is published as the canonical privacy policy at
+     https://dciconi.github.io/tab-bankruptcy/privacy/ via GitHub Pages.
+     A byte-for-byte copy below the frontmatter is also kept at the repo
+     root (PRIVACY.md) so it ships inside the extension zip. The privacy-
+     sync-test in manifest.test.js fails CI if the two diverge. Edit
+     both, or edit one and copy. -->
+
 # Tab Bankruptcy — Privacy Policy
 
 **Last updated:** 2026-04-26
-
-> **Canonical rendered version:** <https://dciconi.github.io/tab-bankruptcy/privacy/>
-> This file ships inside the extension zip and is the byte-for-byte source the
-> Pages site mirrors. The `privacy-sync.test.js` test fails if the two diverge.
 
 ## Summary
 
