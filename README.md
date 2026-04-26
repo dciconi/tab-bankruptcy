@@ -10,15 +10,15 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 
 | Feature | Description |
 |---------|-------------|
-| 🪦 **Declare Bankruptcy** | One click sends all tabs to Grok for clustering |
+| 🪦 **Declare Bankruptcy** | One click clusters all tabs via your chosen AI provider |
+| 🤖 **Multi-provider** | Default: Puter.js (sign in & start). BYOK fallback: xAI · OpenAI · Anthropic · Google |
 | 🗂️ **Smart Clusters** | Tabs grouped by topic with witty names + emojis |
 | ✅ **Keep** | Leave tabs open (green checkmark) |
-| 📥 **Save & Close** | Persist cluster to a named reading list |
+| 📥 **Save & Close** | Add cluster URLs to Chrome's Reading List with `[clusterName]` prefix |
 | 💥 **Nuke** | Close immediately with particle explosion |
 | 🔁 **Undo Toast** | 5-second undo window after any action |
 | 🎉 **Confetti** | Celebration on completing all clusters |
 | 🔊 **Sound Effects** | Web Audio: click, whoosh, cha-ching, fanfare |
-| 📚 **Reading Lists** | IndexedDB storage, "Open All" in Settings |
 | ⌨️ **Keyboard Nav** | Tab/Arrows, K/S/N, Enter to expand |
 | ♿ **Accessibility** | ARIA labels, focus states, reduced motion |
 
@@ -36,10 +36,17 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 
 ### First Run
 
+On install, the options page opens automatically with a setup gate. Pick a provider before clustering:
+
+- **Puter** (recommended): click **Sign in to Puter** → complete OAuth → click **Finish Setup**. No API keys to manage. Puter bills you directly for usage.
+- **BYOK**: paste a key into one of the four provider cards (xAI / OpenAI / Anthropic / Google), pick a model, click **Test** to verify (✓ confirms the key + model work, and the green "active" tag appears), click **Finish Setup**.
+
+After setup:
+
 1. Open 8–12 mixed tabs (work, shopping, fun)
-2. Click the extension icon
+2. Click the extension icon → opens the full-tab popup
 3. See tab count + **"Declare Bankruptcy"** button
-4. Click → Loading (≤4s) → Triage view with ClusterCards
+4. Click → Loading → Triage view with ClusterCards
 5. Try Keep / Save / Nuke on clusters
 6. Resolve all → Confetti + Bankruptcy Receipt
 
@@ -48,26 +55,35 @@ One-click AI clustering and triage for your open tabs. Declare bankruptcy on tab
 ## Architecture
 
 ```
-popup.html/js/css  ← UI (Idle → Loading → Triage → Completion)
+popup.html / popup.js / popup.css     ← UI + LLM call (full tab, not a popup)
         ↕ chrome.runtime.sendMessage
-background.js       ← Service worker: tab query → proxy /cluster → actions
-        ↓ POST {tabs}
-Proxy (https://autoqa.teachx.ai/...)
-        ↓ calls xAI Grok
-        ← returns {clusters: [...]}
-lib/
-  audio.js          ← Web Audio API (no audio files)
-  storage.js        ← IndexedDB reading lists CRUD
+background.js                         ← service worker: tabs query, session cache,
+                                        processed-tab tracking, native tab groups
+
+  popup.js  →  lib/llm/index.js  ──┬──→  lib/llm/puter-provider.js
+                                   │            ↓
+                                   │       window.puter (lib/puter.js, vendored)
+                                   │            ↓
+                                   │       api.puter.com  →  Grok / GPT / Claude / Gemini
+                                   │
+                                   └──→  lib/llm/byok-provider.js
+                                              ↓
+                                        lib/llm/byok/{xai,openai,anthropic,google}.js
+                                              ↓
+                                        api.x.ai · api.openai.com ·
+                                        api.anthropic.com · generativelanguage.googleapis.com
 ```
 
 **Key points:**
 
-- **Manifest V3** — service worker, no background page
-- **Proxy API** — extension never touches `api.x.ai` directly (no key exposure)
-- **CSP** — `script-src 'self'; object-src 'none'; connect-src 'self' https://autoqa.teachx.ai`
-- **Permissions** — `tabs`, `storage`, `tabGroups`
+- **Manifest V3** — service worker, no background page; popup is a full tab opened via `chrome.action.onClicked`.
+- **No backend** — the maintainer operates no server. LLM calls go directly from the browser to the provider.
+- **No remote scripts at runtime** — CSP `script-src 'self'`. The Puter SDK is vendored at `lib/puter.js` (pinned via `lib/puter.VERSION`).
+- **Storage split** — provider/model selections in `chrome.storage.sync` (roams across the user's Chrome profiles); API keys in `chrome.storage.local` (per-device, never synced).
+- **Permissions** — `tabs`, `storage`, `tabGroups`, `alarms`, `readingList`.
+- **CSP `connect-src`** — `'self'` plus the five provider hosts (xAI, OpenAI, Anthropic, Google, Puter).
 
-See root [context.md](../context.md) for proxy contract details.
+See [`context.md`](./context.md) for project history, standing decisions, and Puter SDK quirks worth not rediscovering. See [`docs/superpowers/specs/`](./docs/superpowers/specs/) for the v2 design spec.
 
 ---
 
@@ -75,26 +91,49 @@ See root [context.md](../context.md) for proxy contract details.
 
 ```
 tab-bankruptcy/
-├── manifest.json          # MV3 manifest (permissions, CSP, icons)
-├── background.js          # onMessage handlers: cluster/keep/nuke/save/resume
+├── manifest.json                   # MV3 manifest (permissions, CSP, icons)
+├── background.js                   # Tab queries, session cache, processed-tab tracking, tab groups
 ├── background.test.js
-├── popup.html             # 4 views: idle, loading, triage, completion
-├── popup.js               # State machine, ClusterCard render, button handlers
-├── popup.css              # Dark theme, animations, confetti, reduced-motion
+├── popup.html                      # 5 views: setup-required, idle, loading, triage, completion, error
+├── popup.js                        # State machine + LLM orchestration (clusterTabs)
+├── popup.css                       # Dark theme, animations, confetti, reduced-motion
 ├── popup.test.js
-├── options.html           # Settings: model info, prompt editor, reading lists
-├── options.js             # chrome.storage.sync + IndexedDB via background
+├── popup.css.test.js
+├── options.html                    # Welcome gate, provider config, prompt editor, theme
+├── options.js                      # Provider radios, Puter sign-in, BYOK cards, key entry, Test/Clear
 ├── options.css
 ├── options.test.js
+├── manifest.test.js
 ├── lib/
-│   ├── audio.js           # playClick, playNuke, playKeep, playSave, playCompletion
-│   └── audio.test.js
+│   ├── audio.js                    # playClick, playNuke, playKeep, playSave, playCompletion (Web Audio API)
+│   ├── audio.test.js
+│   ├── puter.js                    # Vendored Puter SDK v2 (do not edit; use docs/maintenance/puter-sdk-updates.md)
+│   ├── puter.VERSION               # SHA-256 + fetch date for the pinned SDK
+│   ├── puter.LICENSE               # Upstream AGPL-3.0 notice
+│   └── llm/
+│       ├── package.json            # ESM scope marker ({ "type": "module" })
+│       ├── index.js                # clusterTabs(tabs, settings) entry + re-exports
+│       ├── errors.js               # ApiKeyMissingError, PuterNotSignedIn, PuterOutOfCredits, etc.
+│       ├── prompt.js               # buildMessages: tab whitelist + JSON schema instruction
+│       ├── parse.js                # parseClusters: robust JSON extraction (strips fences, locates braces)
+│       ├── models.js               # Thin wrapper exporting MODELS / PROVIDERS / PROVIDER_LABELS
+│       ├── models.json             # Editable model catalog (see "Models Catalog" below)
+│       ├── puter-provider.js       # Puter dispatcher (sign-in check, credit-error wrap, no-stream guardrail)
+│       ├── byok-provider.js        # BYOK dispatcher (routes to one of four providers)
+│       ├── byok/
+│       │   ├── xai.js              # POST api.x.ai/v1/chat/completions
+│       │   ├── openai.js           # POST api.openai.com/v1/chat/completions
+│       │   ├── anthropic.js        # POST api.anthropic.com/v1/messages (with browser-access header)
+│       │   └── google.js           # POST generativelanguage.googleapis.com/v1beta/...
+│       └── *.test.js               # 10 unit tests (one per source file, plus integration)
 ├── assets/icons/
 │   ├── icon48.png
 │   └── icon128.png
-├── manifest.test.js
-├── popup.css.test.js
-└── test/fixtures/         # mock tab data
+└── docs/
+    ├── maintenance/
+    │   ├── puter-sdk-updates.md    # How to bump the vendored Puter SDK + smoke test checklist
+    │   └── v2-migration.md         # v1->v2 forced re-setup; removal criteria for v3
+    └── superpowers/{specs,plans}/  # Design spec + implementation plan for v2
 ```
 
 ---
@@ -103,34 +142,52 @@ tab-bankruptcy/
 
 ### Run Tests
 
+Tests use Node + self-mocked `chrome.*` and `fetch`. No runner config; each file is invoked directly.
+
 ```bash
-# From tab-bankruptcy/ or project root
+# Root tests (CommonJS)
 node background.test.js
 node popup.test.js
-node lib/storage.test.js
+node manifest.test.js
+node popup.css.test.js
+
+# lib tests
 node lib/audio.test.js
+
+# LLM module tests (ESM, scoped via lib/llm/package.json)
+node lib/llm/errors.test.js
+node lib/llm/prompt.test.js
+node lib/llm/parse.test.js
+node lib/llm/index.test.js
+node lib/llm/puter-provider.test.js
+node lib/llm/byok-provider.test.js
+node lib/llm/byok/xai.test.js
+node lib/llm/byok/openai.test.js
+node lib/llm/byok/anthropic.test.js
+node lib/llm/byok/google.test.js
 ```
 
-Tests use Node + mocks (chrome.* APIs are mocked). Some async tests may show env limitations — the runtime code is correct.
+A few pre-existing tests have known env limitations (`options.test.js` uses Jest globals without Jest installed; `popup.css.test.js` Rule 8 checks `#declare-btn` but the CSS uses `#btn-declare`). The runtime code is correct.
 
 ### Key Constants
 
-| Constant | Value |
-|----------|-------|
-| `PROXY_URL` (background.js) | `https://autoqa.teachx.ai/hackathon/preview/chapter-11/cluster` |
-| Proxy contract | `POST {tabs:[...]}` → `GET {clusters:[{name,emoji,tabIds,vibe,confidence}]}` |
-| Loading messages | 4 escalating: "Scanning…", "You monster…", "This is for your own good.", "POOF." |
-| Undo window | 5 seconds |
+| Constant | Value | Where |
+|----------|-------|-------|
+| `PUTER_DASHBOARD_URL` | `https://puter.com/dashboard` | `lib/llm/puter-provider.js` |
+| Puter user-action signal | `delegate === 'usage-limited-chat'` | Out-of-credits detection |
+| Anthropic browser-access header | `anthropic-dangerous-direct-browser-access: true` | Required for direct-from-browser calls |
+| Loading messages | "Scanning…", "You monster…", "This is for your own good.", "POOF." | `popup.js` |
+| Undo window | 5 seconds | `popup.js` |
 
 ### Build
 
-No compilation step — the extension is plain HTML/CSS/JS.
+No compilation step — the extension is plain HTML / CSS / ESM JS.
 
 **To package:**
 
 ```bash
-# Zip for distribution (exclude tests)
-zip -r tab-bankruptcy.zip . -x "*.test.js" "test/*"
+zip -r tab-bankruptcy.zip . \
+  -x "*.test.js" "test/*" "docs/*" "node_modules/*" ".git/*"
 ```
 
 **Or pack in Chrome:**
@@ -142,36 +199,94 @@ Upload the zip or crx to the Chrome Web Store via Developer Dashboard.
 
 ---
 
-## Proxy API (for reference)
+## Providers
 
-**Request:**
+### Puter (default)
+
+The user signs in to Puter once via OAuth (popup window). Puter then handles billing for subsequent `puter.ai.chat()` calls. The extension never sees a Puter API key — auth is handled entirely by the SDK.
+
+- **Sign-in only happens in the options page** (bound to a direct click). The popup never auto-signs-in mid-flow because Chrome's popup blocker would engage after `await`.
+- **Default model is set explicitly** (currently `x-ai/grok-4-1-fast-non-reasoning`); Puter's silent default is `gpt-5-nano`, which is wrong for our use case.
+- **Out of credits → top up** at `https://puter.com/dashboard`. The popup detects the `usage-limited-chat` delegate error and shows an "Open Puter Dashboard" button.
+- **Streaming is disabled** — Puter issue [#2410](https://github.com/HeyPuter/puter/issues/2410) makes `stream: true` hang on errors. We use non-streaming responses only.
+- **Test connection** uses `testMode: true` so verification doesn't burn credits.
+- **Updating the SDK**: see [`docs/maintenance/puter-sdk-updates.md`](./docs/maintenance/puter-sdk-updates.md) for the quarterly drift check + smoke test.
+
+### BYOK
+
+For users with their own API keys. Four providers, each in `lib/llm/byok/`:
+
+| Provider | Endpoint | Auth | Notes |
+|----------|----------|------|-------|
+| xAI | `POST https://api.x.ai/v1/chat/completions` | `Authorization: Bearer <key>` | OpenAI-compatible schema |
+| OpenAI | `POST https://api.openai.com/v1/chat/completions` | `Authorization: Bearer <key>` | — |
+| Anthropic | `POST https://api.anthropic.com/v1/messages` | `x-api-key: <key>` + `anthropic-version: 2023-06-01` + `anthropic-dangerous-direct-browser-access: true` | System prompt is a separate field |
+| Google | `POST https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent` | `?key=<key>` query param | Different message shape (`contents` / `parts`) |
+
+Errors are normalized into a shared taxonomy: `auth` (401/403), `rate_limit` (429), `network` (fetch threw), `unknown` (other non-OK). The popup shows a tailored error message + action buttons per kind.
+
+**Keys never leave the user's device.** They live in `chrome.storage.local` only — never `chrome.storage.sync`, which roams to other profiles.
+
+---
+
+## Models Catalog
+
+The list of selectable models is **data, not code**. Edit [`lib/llm/models.json`](./lib/llm/models.json) — no JS changes required.
+
+### Shape
 
 ```json
-POST /cluster
 {
-  "tabs": [
-    {"id": 1, "title": "React Docs", "url": "https://react.dev", ...}
-  ]
+  "providers": ["xai", "openai", "anthropic", "google"],
+  "providerLabels": {
+    "xai": "xAI (Grok)",
+    "openai": "OpenAI",
+    "anthropic": "Anthropic (Claude)",
+    "google": "Google (Gemini)"
+  },
+  "models": {
+    "puter": {
+      "default": "x-ai/grok-4-1-fast-non-reasoning",
+      "options": [
+        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) — default" },
+        { "id": "gpt-4o-mini",                      "label": "GPT-4o mini" }
+      ]
+    },
+    "xai":       { "default": "...", "options": [...] },
+    "openai":    { "default": "...", "options": [...] },
+    "anthropic": { "default": "...", "options": [...] },
+    "google":    { "default": "...", "options": [...] }
+  }
 }
 ```
 
-**Response:**
+### How to add a model
 
-```json
-{
-  "clusters": [
-    {
-      "name": "React Hook Wizards",
-      "emoji": "🪝",
-      "tabIds": [1, 2, 3],
-      "vibe": "Deep dives into useState and useEffect",
-      "confidence": 0.92
-    }
-  ]
-}
-```
+1. Open `lib/llm/models.json`.
+2. In the relevant provider's `options` array, add `{ "id": "<api-model-id>", "label": "<human-readable>" }`.
+3. Optionally update the provider's `default` to the new ID.
+4. Reload the unpacked extension at `chrome://extensions`.
+5. Open Settings → the new model appears in the dropdown.
 
-The proxy holds `XAI_API_KEY` server-side. Extension never sees it.
+### How to remove a model
+
+1. Delete the entry from `options`.
+2. If it was the `default`, update `default` to a remaining ID.
+3. Reload.
+
+### Selection preservation
+
+The dropdown is rebuilt from the JSON on each Settings load. A user's previously-saved selection is preserved **only if its ID still appears** in `options`; otherwise the dropdown silently falls back to `default`. This means you can edit `models.json` freely without overwriting still-valid user choices.
+
+The mechanism is in `options.js` → `pickPreservedValue()`.
+
+### Why JSON instead of JS?
+
+So that maintainers (and future automation) can edit the catalog without touching code. `lib/llm/models.js` is a 12-line wrapper that imports the JSON via standard import attributes (`with { type: 'json' }`), supported in Node 22 and Chrome 123+.
+
+### Defaults are intentionally cheap-fast tier
+
+Tab clustering reads ~20 tab titles and emits ~5 cluster names. It's a low-reasoning task; Haiku / Flash / mini-tier defaults are plenty. Don't "modernize" defaults to Sonnet / Opus / Pro tiers without a measured reason — users can always opt up via the dropdown if they want.
 
 ---
 
@@ -180,10 +295,15 @@ The proxy holds `XAI_API_KEY` server-side. Extension never sees it.
 | Issue | Fix |
 |-------|-----|
 | Extension doesn't load | Check `chrome://extensions` for errors; reload manifest |
-| No clusters appear | Verify proxy is running; check DevTools Console in background |
+| First run / setup gate | Open the extension icon → click "Open Settings" → pick Puter or BYOK and finish setup |
+| "You're out of Puter credits" | Top up at [puter.com/dashboard](https://puter.com/dashboard), or switch to BYOK in Settings |
+| BYOK key rejected (401/403) | Verify the key in the provider's console; for xAI specifically, check that the model ID is current and your team has credits |
+| BYOK rate limit (429) | Wait a moment and retry; consider switching to a different provider in Settings |
+| "Couldn't reach the model" | Check internet; verify CSP `connect-src` and `host_permissions` in `manifest.json` cover the provider host |
+| "Model returned an unexpected response" | Provider returned non-JSON. Try Retry; if persistent, switch models or providers |
 | Sound doesn't play | Check mute toggle in Settings; browser may block autoplay |
-| Reading lists empty | IndexedDB created on first Save; check browser storage settings |
-| Keyboard nav not working | Focus must be on popup (click into it first) |
+| Reading list save not working | Ensure the `readingList` permission is in `manifest.json`; verify `chrome.readingList` is available in your Chrome version |
+| Keyboard nav not working | Focus must be on the popup tab (click into it first) |
 
 ---
 
@@ -193,6 +313,6 @@ Hackathon project — internal use.
 
 ---
 
-**Version:** 1.0.0  
-**Manifest:** MV3  
-**Last updated:** 2026-04-11
+**Version:** 2.0.0
+**Manifest:** MV3
+**Last updated:** 2026-04-26
