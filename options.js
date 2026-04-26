@@ -675,16 +675,20 @@ function wireResetButton() {
   const result = $('reset-result');
   btn.addEventListener('click', async () => {
     const ok = confirm(
-      "Reset AI settings?\n\n" +
-      "This will delete every saved BYOK API key, sign you out of Puter, " +
-      "and clear your provider and model selections. Your custom prompt, " +
-      "sound, and theme preferences will be kept."
+      "Reset everything?\n\n" +
+      "This will:\n" +
+      "  • Delete every saved BYOK API key\n" +
+      "  • Sign you out of Puter\n" +
+      "  • Clear all preferences (provider, model, prompt, sound, theme)\n" +
+      "  • Clear cached cluster state and processed-tab history\n\n" +
+      "The extension will return to its first-run state."
     );
     if (!ok) return;
     btn.disabled = true;
     result.textContent = '… resetting';
     try {
-      // Sign out of Puter if signed in. Tolerate failures.
+      // Sign out of Puter if signed in. This handles Puter's auth cookies on
+      // its own domain. Tolerate failures so a Puter outage doesn't block reset.
       if (window.puter && window.puter.auth) {
         try {
           if (await window.puter.auth.isSignedIn()) {
@@ -692,11 +696,13 @@ function wireResetButton() {
           }
         } catch {}
       }
-      // Clear AI-related storage. Leave customPrompt, muted, theme alone.
-      const localKeysToClear = ['byokKeys', 'apiKeys', 'apiKeysVerified'];
-      const syncKeysToClear = ['provider', 'puterModel', 'byokProvider', 'byokModels', 'setupComplete'];
-      await new Promise(r => chrome.storage.local.remove(localKeysToClear, r));
-      await new Promise(r => chrome.storage.sync.remove(syncKeysToClear, r));
+      // Wipe every storage area this extension owns. clear() removes
+      // unknown keys too, so legacy fields from older v2 schemas are gone.
+      await new Promise(r => chrome.storage.local.clear(r));
+      await new Promise(r => chrome.storage.sync.clear(r));
+      // Session storage holds tb_cluster_state, tb_last_tab_ids, and
+      // tb_processed_tab_ids — owned by background.js but accessible here.
+      await new Promise(r => chrome.storage.session.clear(r));
       result.textContent = '✓ Done — reloading';
       setTimeout(() => location.reload(), 700);
     } catch (e) {
