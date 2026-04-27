@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Tab Bankruptcy",
+  "name": "Tab Bankruptcy - AI Tab Triage",
   "version": "1.99.0",
   "version_name": "2.0.0 beta",
-  "description": "One-click AI clustering and triage for tab bankruptcy.",
+  "description": "One-click AI clustering and triage for browser tabs. Use Puter or your own API keys (xAI, OpenAI, Claude, Gemini)",
   "permissions": ["tabs", "storage", "tabGroups", "alarms", "readingList"],
   "host_permissions": [
     "https://api.x.ai/*",
