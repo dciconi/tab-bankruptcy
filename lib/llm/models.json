@@ -8,14 +8,19 @@
   },
   "models": {
     "puter": {
-      "default": "x-ai/grok-3-mini",
+      "default": "x-ai/grok-4-1-fast-non-reasoning",
       "options": [
-        { "id": "x-ai/grok-3-mini",                 "label": "Grok 3 mini (default)" },
+        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning) - default" },
+        { "id": "x-ai/grok-3-mini",                 "label": "Grok 3 mini" },
         { "id": "grok-3",                           "label": "Grok 3" },
-        { "id": "x-ai/grok-4-1-fast-non-reasoning", "label": "Grok 4.1 Fast (non-reasoning)" },
+        { "id": "gpt-5-mini",                        "label": "GPT-5 mini" },
         { "id": "gpt-4o-mini",                      "label": "GPT-4o mini" },
+        { "id": "claude-sonnet-4-6",                "label": "Claude Sonnet 4.6" },
         { "id": "claude-haiku-4-5",                 "label": "Claude Haiku 4.5" },
-        { "id": "gemini-2.5-flash",                 "label": "Gemini 2.5 Flash" }
+        { "id": "gemini-2.5-flash",                 "label": "Gemini 2.5 Flash" },
+        { "id": "gemini-2.5-pro",                   "label": "Gemini 2.5 Pro" },
+        { "id": "gemini-3-flash",                   "label": "Gemini 3 Flash" },
+        { "id": "gemini-3-pro",                     "label": "Gemini 3 Pro" }
       ]
     },
     "xai": {
@@ -36,19 +41,20 @@
       ]
     },
     "anthropic": {
-      "default": "claude-haiku-4-5-20251001",
+      "default": "claude-sonnet-4-6",
       "options": [
-        { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5 — default" },
-        { "id": "claude-sonnet-4-6",         "label": "Claude Sonnet 4.6" }
+        { "id": "claude-sonnet-4-6",                "label": "Claude Sonnet 4.6 - default" },
+        { "id": "claude-haiku-4-5",                 "label": "Claude Haiku 4.5" },
+        { "id": "claude-haiku-4-5-20251001",        "label": "Claude Haiku 4.5 (20251001)" }
       ]
     },
     "google": {
-      "default": "gemini-2.5-flash",
+      "default": "gemini-3-pro",
       "options": [
-        { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash — default" },
+        { "id": "gemini-3-pro", "label": "Gemini 3 Pro - default" },
+        { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash" },
         { "id": "gemini-2.5-pro",   "label": "Gemini 2.5 Pro" },
-        { "id": "gemini-3-flash", "label": "Gemini 3 Flash" },
-        { "id": "gemini-3-pro", "label": "Gemini 3 Pro" }
+        { "id": "gemini-3-flash", "label": "Gemini 3 Flash" }
       ]
     }
   }
