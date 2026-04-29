@@ -186,18 +186,26 @@ async function handleSave(tabIds, listName, vibe) {
   await markProcessed(tabIds);
 }
 
-// Create native Chrome tab groups for each cluster
+// Create native Chrome tab groups for each cluster.
+// API: chrome.tabs.group({tabIds}) returns groupId; chrome.tabGroups.update
+// then sets title/color. tabGroups.create does not exist.
 async function createTabGroups(clusters) {
-  if (!Array.isArray(clusters) || !chrome.tabGroups?.create) return;
-  const colors = ['blue', 'green', 'red', 'yellow', 'purple', 'cyan', 'pink'];
+  if (!Array.isArray(clusters) || !chrome.tabs?.group || !chrome.tabGroups?.update) return;
+  const palette = ['blue', 'green', 'red', 'yellow', 'purple', 'cyan', 'pink'];
   for (let i = 0; i < clusters.length; i++) {
     const c = clusters[i];
     const tabIds = c.tabIds || [];
     if (tabIds.length === 0) continue;
     try {
+      const groupId = await chrome.tabs.group({ tabIds });
       const title = c.emoji ? `${c.emoji} ${c.name || 'Cluster'}` : (c.name || 'Cluster');
-      const color = c.color ? undefined : colors[i % colors.length];
-      await chrome.tabGroups.create({ tabIds, title, ...(color && { color }) });
+      const color = c.color || palette[i % palette.length];
+      try {
+        await chrome.tabGroups.update(groupId, { title, color });
+      } catch {
+        // LLM may emit a color outside Chrome's enum; retry without it.
+        await chrome.tabGroups.update(groupId, { title });
+      }
     } catch (e) {
       // Tabs might already be grouped or closed; ignore
     }

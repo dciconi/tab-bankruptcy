@@ -13,7 +13,8 @@ global.chrome = {
     update: (id, props) => { updatedTabs.push({id, props}); return Promise.resolve(); },
     remove: (ids) => { removedTabs.push(...(Array.isArray(ids) ? ids : [ids])); return Promise.resolve(); },
     get: (id) => { getTabCalls.push(id); return Promise.resolve({id, title: `Tab ${id}`, url: `https://t${id}.com`}); },
-    create: (opts) => Promise.resolve(opts)
+    create: (opts) => Promise.resolve(opts),
+    group: async ({tabIds}) => 1
   },
   runtime: {
     onMessage: {addListener: () => {}},
@@ -49,7 +50,7 @@ global.chrome = {
     onClicked: { addListener: () => {} }
   },
   tabGroups: {
-    create: async () => {}
+    update: async () => {}
   }
 };
 
