@@ -84,7 +84,7 @@ background.js                         ← service worker: tabs query, session ca
 - **No remote scripts at runtime** — CSP `script-src 'self'`. The Puter SDK is vendored at `lib/puter.js` (pinned via `lib/puter.VERSION`).
 - **Storage split** — provider/model preferences in `chrome.storage.sync` (roams across the user's Chrome profiles); BYOK API keys live in `chrome.storage.local` as an ordered `byokKeys` list (per-device, never synced).
 - **Setup state is reconciled, not migrated** — `setupComplete` is recomputed on each popup/options open from the actual storage state (`reconcileSetupComplete()` in `popup.js` and `options.js`). Existing users with working configs are not re-gated on extension updates.
-- **Permissions** — `tabs`, `storage`, `tabGroups`, `alarms`, `readingList`.
+- **Permissions** — `tabs`, `storage`, `tabGroups`, `readingList`.
 - **CSP `connect-src`** — `'self'` plus the five HTTPS provider hosts (xAI, OpenAI, Anthropic, Google, Puter) plus `wss://api.puter.com` and `wss://*.puter.com` for Puter's Socket.IO transport.
 
 See [`context.md`](./context.md) for project history, standing decisions, and Puter SDK quirks worth not rediscovering. See [`docs/superpowers/specs/`](./docs/superpowers/specs/) for the v2 design spec.

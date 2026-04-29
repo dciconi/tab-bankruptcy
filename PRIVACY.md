@@ -61,7 +61,6 @@ The extension bundles a vendored copy of the [Puter.js](https://puter.com) SDK (
 | `tabs` | Read open tab titles + URLs to send to the AI; close tabs on "Nuke"; update active tab on actions |
 | `tabGroups` | Render returned clusters as native Chrome tab groups |
 | `storage` | Persist your settings, BYOK keys (local only), and triage state |
-| `alarms` | Keep the service worker alive during the LLM call (otherwise MV3 idles it mid-request) |
 | `readingList` | Save URLs to Chrome's built-in Reading List on "Save & Close" |
 | `host_permissions` for the five LLM-provider hosts | The `fetch` calls themselves; without these the request is blocked |
 

@@ -22,10 +22,6 @@ global.chrome = {
     getURL: (path) => 'chrome-extension://test/' + (path || ''),
     id: 'test-extension-id'
   },
-  alarms: {
-    create: (name, opts) => {},
-    clear: (name) => Promise.resolve()
-  },
   storage: {
     session: {
       get: async (key) => {
