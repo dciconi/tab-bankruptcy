@@ -33,10 +33,10 @@ The developer of this extension does **not** operate any backend, does **not** c
 
 ## Get it
 
-- [Install from the Chrome Web Store](https://chrome.google.com/webstore/) (link will be live once the listing is approved)
+- [Install from the Chrome Web Store](https://chromewebstore.google.com/detail/lmhmbimkgpjkdkalklfgphffjggkidfk) (unlisted beta)
 - [Source on GitHub](https://github.com/dciconi/tab-bankruptcy)
 - [Report an issue](https://github.com/dciconi/tab-bankruptcy/issues)
 
 ---
 
-<small>Open source under hackathon-project terms. Built with the vendored [Puter.js](https://puter.com) SDK (AGPL-3.0).</small>
+<small>Released under the [Apache License 2.0](https://github.com/dciconi/tab-bankruptcy/blob/main/LICENSE). Built with the vendored [Puter.js](https://puter.com) SDK (AGPL-3.0; see [NOTICE](https://github.com/dciconi/tab-bankruptcy/blob/main/NOTICE)).</small>

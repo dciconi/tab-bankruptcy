@@ -1,0 +1,17 @@
+Tab Bankruptcy
+Copyright 2026 dciconi
+
+This product is licensed under the Apache License, Version 2.0
+(see LICENSE).
+
+It bundles, without modification, the following third-party software:
+
+  Puter.js v2 SDK — at lib/puter.js
+    Copyright (c) Puter Technologies Inc. and contributors
+    Licensed under the GNU Affero General Public License v3.0
+    Source: https://github.com/HeyPuter/puter
+    Notice: lib/puter.LICENSE
+
+The AGPL-3.0 terms apply to lib/puter.js itself. The rest of this
+project is Apache-2.0 and may be reproduced, modified, and
+redistributed under those terms.
