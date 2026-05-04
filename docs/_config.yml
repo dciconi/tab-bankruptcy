@@ -10,9 +10,6 @@ theme: jekyll-theme-cayman
 # Everything else under /docs is published.
 exclude:
   - maintenance/
-  - superpowers/
-  - store-listing.md
-  - store-submission-checklist.md
 
 # Pretty URLs: /privacy.md → /privacy/
 permalink: pretty

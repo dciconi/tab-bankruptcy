@@ -2,3 +2,11 @@ dist/
 *.zip
 .DS_Store
 node_modules/
+
+# Internal-only docs (not part of the published repo)
+CLAUDE.md
+context.md
+publishing-context.md
+/docs/store-listing.md
+/docs/store-submission-checklist.md
+/docs/superpowers/

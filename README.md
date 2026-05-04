@@ -77,7 +77,7 @@ background.js                         ← service worker: tabs query, session ca
 - **Permissions** — `tabs`, `storage`, `tabGroups`, `readingList`.
 - **CSP `connect-src`** — `'self'` plus the five HTTPS provider hosts (xAI, OpenAI, Anthropic, Google, Puter) plus `wss://api.puter.com` and `wss://*.puter.com` for Puter's Socket.IO transport.
 
-See [`context.md`](./context.md) for project history and Puter SDK quirks worth not rediscovering. See [`publishing-context.md`](./publishing-context.md) for the live-beta submission state.
+For maintenance details on bumping the vendored Puter SDK, see [`docs/maintenance/puter-sdk-updates.md`](./docs/maintenance/puter-sdk-updates.md).
 
 ---
 
@@ -173,10 +173,8 @@ Outputs `dist/tab-bankruptcy-<version>.zip`. The script stages exactly the runti
 
 ### Publishing
 
-- Step-by-step checklist: [`docs/store-submission-checklist.md`](./docs/store-submission-checklist.md)
-- Paste-ready dashboard copy: [`docs/store-listing.md`](./docs/store-listing.md)
 - Privacy policy: [`PRIVACY.md`](./PRIVACY.md) (canonical: <https://dciconi.github.io/tab-bankruptcy/privacy/>)
-- Live-beta submission state and resume notes: [`publishing-context.md`](./publishing-context.md)
+- Pages site: <https://dciconi.github.io/tab-bankruptcy/>
 
 ---
 
