@@ -211,4 +211,4 @@ The vendored Puter.js SDK at `lib/puter.js` is **AGPL-3.0** (see [`lib/puter.LIC
 
 ---
 
-**Version:** 1.99.1 (`version_name`: 2.0.0 beta) · **Manifest:** MV3 · **Last updated:** 2026-05-04
+**Version:** 1.99.2 (`version_name`: 2.0.0 beta) · **Manifest:** MV3 · **Last updated:** 2026-05-08
