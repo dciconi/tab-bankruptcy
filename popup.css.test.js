@@ -34,6 +34,14 @@ const required = [
   /\.error-content[\s\S]*?background:\s*linear-gradient[\s\S]*?border:\s*1px solid/,
   /\.error-actions[\s\S]*?grid-template-columns/,
   /#view-error\s+\.btn-primary[\s\S]*?background:\s*linear-gradient/,
+  /body\.light-mode\s*\{[\s\S]*?--text:\s*#111827/,
+  /body\.light-mode\s+#view-idle\s+\.tab-count\s*\{[\s\S]*?background:\s*linear-gradient/,
+  /body\.light-mode\s+#view-idle\s+\.tab-count\s+#idle-tab-count\s*\{[\s\S]*?color:\s*#0f172a/,
+  /body\.light-mode\s+\.action-bar\s+\.btn\s*\{[\s\S]*?border:\s*1px solid/,
+  /body\.light-mode\s+\.cluster-card\.expanded\s*\{[\s\S]*?height:\s*auto/,
+  /#view-triage,\s*#triage-view\s*\{[\s\S]*?min-height:\s*100vh/,
+  /#view-triage\.active,\s*#view-triage\.view\.active,\s*#triage-view\.active\s*\{[\s\S]*?display:\s*flex/,
+  /#clusters-container\s*\{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-height:\s*0/,
 ];
 
 let passed = 0;

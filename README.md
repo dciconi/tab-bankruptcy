@@ -140,6 +140,16 @@ The dropdown rebuilds on each Settings load. A user's previously-saved selection
 
 ---
 
+## Change Log
+
+### 2026-05-08
+
+- Improved light theme contrast across the popup and settings pages.
+- Fixed the mute-sounds toggle alignment in Settings.
+- Fixed the Clusters Found screen layout so expanded tab lists render correctly across operating systems, including light mode.
+
+---
+
 ## Development
 
 ### Run tests

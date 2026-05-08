@@ -20,4 +20,27 @@ assert.ok(
   'Puter model select should share light-mode theme select styling'
 );
 
+assert.match(
+  css,
+  /body\.light-mode\s*\{[\s\S]*?--text:\s*#111827;/,
+  'Light mode should use a high-contrast primary text color'
+);
+
+assert.match(
+  css,
+  /\.toggle-control\s*\{[\s\S]*?width:\s*52px;[\s\S]*?height:\s*28px;[\s\S]*?display:\s*flex;/,
+  'Mute toggle control should reserve the same box as the switch'
+);
+
+assert.match(
+  css,
+  /\.toggle-switch\s*\{[\s\S]*?display:\s*block;/,
+  'Mute toggle switch should not rely on inline span sizing'
+);
+
+assert.ok(
+  css.includes('#mute-toggle:focus-visible + .toggle-switch'),
+  'Mute toggle should expose a visible keyboard focus style'
+);
+
 console.log('options dropdown styles ok');
