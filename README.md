@@ -142,6 +142,19 @@ The dropdown rebuilds on each Settings load. A user's previously-saved selection
 
 ## Change Log
 
+### 2026-05-09
+
+- Each tab in the cluster dropdown now shows its favicon and a relative
+  "last active" label.
+- Added a search/filter input above the cluster list so you can narrow
+  to specific tabs by title or URL.
+- New keyboard shortcuts inside the triage view: `K` keep, `S` save,
+  `N` nuke (per focused cluster); `U` triggers the most recent undo;
+  `/` focuses the search box; `Esc` clears the filter.
+- Added a global Chrome shortcut (default `Alt+Shift+B`) that opens the
+  Tab Bankruptcy tab from anywhere. Customize it at
+  `chrome://extensions/shortcuts`.
+
 ### 2026-05-08
 
 - Improved light theme contrast across the popup and settings pages.
@@ -211,4 +224,4 @@ The vendored Puter.js SDK at `lib/puter.js` is **AGPL-3.0** (see [`lib/puter.LIC
 
 ---
 
-**Version:** 1.99.2 (`version_name`: 2.0.0 beta) · **Manifest:** MV3 · **Last updated:** 2026-05-08
+**Version:** 1.99.3 (`version_name`: 2.0.0 beta) · **Manifest:** MV3 · **Last updated:** 2026-05-09

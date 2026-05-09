@@ -241,4 +241,48 @@ describe('popup.html script ordering', () => {
   });
 });
 
+describe('Triage toolbar (1.99.3)', () => {
+  it('popup.html exposes the cluster-search input above the cluster list', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('id="cluster-search"'), 'popup.html has cluster-search input');
+    const searchIdx = popupHtml.indexOf('id="cluster-search"');
+    const containerIdx = popupHtml.indexOf('id="clusters-container"');
+    assertTrue(searchIdx > 0 && searchIdx < containerIdx, 'search input renders before the clusters container');
+  });
+  it('popup.html exposes a keyboard hint with the K/S/N/U cheatsheet', () => {
+    const fs = require('fs');
+    const popupHtml = fs.readFileSync('popup.html', 'utf8');
+    assertTrue(popupHtml.includes('K keep'), 'kbd hint mentions K keep');
+    assertTrue(popupHtml.includes('U undo'), 'kbd hint mentions U undo');
+  });
+  it('popup.js defines applyClusterFilter and uses it on input', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('function applyClusterFilter'), 'applyClusterFilter declared');
+    assertTrue(popupJs.includes("applyClusterFilter(e.target.value)"), 'search input wired to filter');
+  });
+  it('popup.js wires the / shortcut to focus search and U to trigger last undo', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes("e.key === '/'"), 'forward-slash shortcut wired');
+    assertTrue(popupJs.includes('triggerLastUndo'), 'triggerLastUndo helper called');
+  });
+});
+
+describe('Per-tab metadata in cluster dropdown (1.99.3)', () => {
+  it('popup.js renders a relative last-active label per mini-tab', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('function relativeTime'), 'relativeTime helper declared');
+    assertTrue(popupJs.includes('mini-last-active'), 'mini-last-active span rendered in mini-list');
+  });
+  it('popup.js builds a tabMap once per render to avoid re-querying chrome.tabs', () => {
+    const fs = require('fs');
+    const popupJs = fs.readFileSync('popup.js', 'utf8');
+    assertTrue(popupJs.includes('async function buildTabMap'), 'buildTabMap declared');
+    assertTrue(popupJs.includes('tabMap = await buildTabMap'), 'renderClusters builds tabMap before rendering');
+  });
+});
+
 console.log('\nAll tests completed.');

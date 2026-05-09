@@ -102,8 +102,13 @@ const {handleKeep, handleNuke, handleSave, markProcessed, tabSignature, createTa
     assert.strictEqual(result.ok, true);
     assert.strictEqual(result.cached, false);
     assert.strictEqual(result.tabs.length, 2, 'pinned + chrome:// are filtered out');
-    // Field whitelist: only id/title/url survive
-    assert.deepStrictEqual(Object.keys(result.tabs[0]).sort(), ['id', 'title', 'url']);
+    // Field whitelist: id/title/url plus favIconUrl/lastAccessed when present.
+    // windowId is intentionally NOT in the whitelist and must not leak through.
+    const keys0 = Object.keys(result.tabs[0]).sort();
+    const allowed = new Set(['id', 'title', 'url', 'favIconUrl', 'lastAccessed']);
+    keys0.forEach(k => assert.ok(allowed.has(k), `unexpected sanitized field: ${k}`));
+    assert.ok(keys0.includes('favIconUrl'), 'favIconUrl forwarded to popup');
+    assert.ok(!keys0.includes('windowId'), 'windowId is NOT forwarded');
     assert.ok(typeof result.sig === 'string');
   }
 

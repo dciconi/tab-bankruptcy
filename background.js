@@ -131,7 +131,9 @@ async function handleGetTabsForCluster() {
   }
 
   // Whitelist tab fields the LLM should see (used to be Pydantic-driven; now LLM-driven).
-  const allowed = ['id', 'title', 'url'];
+  // favIconUrl + lastAccessed travel through so the popup can render per-tab metadata
+  // (favicon, "5m ago" labels) without a second round-trip to chrome.tabs.get.
+  const allowed = ['id', 'title', 'url', 'favIconUrl', 'lastAccessed'];
   const sanitized = filtered.map(t => {
     const o = {};
     for (const k of allowed) if (k in t) o[k] = t[k];
@@ -217,6 +219,15 @@ chrome.action.onClicked.addListener(() => {
   const url = chrome.runtime.getURL('popup.html');
   chrome.tabs.create({ url });
 });
+
+// Global keyboard shortcut (default Alt+Shift+B) opens the same full tab view.
+if (chrome.commands?.onCommand) {
+  chrome.commands.onCommand.addListener((cmd) => {
+    if (cmd === 'open-popup') {
+      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+    }
+  });
+}
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {

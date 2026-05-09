@@ -62,6 +62,14 @@ for (const size of ['16', '32', '48', '128']) {
 if (!manifest.content_security_policy?.extension_pages?.includes('connect-src')) errors.push('CSP connect-src required');
 if (!manifest.content_security_policy?.extension_pages?.includes('script-src')) errors.push('CSP script-src required');
 
+// 1.99.3: global Chrome command for opening the popup tab via keyboard.
+if (!manifest.commands?.['open-popup']) {
+  errors.push('manifest.commands["open-popup"] required for global keyboard shortcut');
+}
+if (!manifest.commands?.['open-popup']?.suggested_key?.default) {
+  errors.push('manifest.commands["open-popup"].suggested_key.default required');
+}
+
 if (errors.length) {
   console.error('❌ Manifest validation failed:\n' + errors.join('\n'));
   process.exit(1);

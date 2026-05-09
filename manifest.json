@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Bankruptcy - AI Tab Triage",
-  "version": "1.99.2",
+  "version": "1.99.3",
   "version_name": "2.0.0 beta",
   "description": "One-click AI clustering and triage for browser tabs. Use Puter or your own API keys (xAI, OpenAI, Claude, Gemini)",
   "permissions": ["tabs", "storage", "tabGroups", "readingList"],
@@ -19,6 +19,14 @@
       "32": "assets/icons/icon32.png",
       "48": "assets/icons/icon48.png",
       "128": "assets/icons/icon128.png"
+    }
+  },
+  "commands": {
+    "open-popup": {
+      "suggested_key": {
+        "default": "Alt+Shift+B"
+      },
+      "description": "Open Tab Bankruptcy"
     }
   },
   "background": {

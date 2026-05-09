@@ -42,6 +42,10 @@ const required = [
   /#view-triage,\s*#triage-view\s*\{[\s\S]*?min-height:\s*100vh/,
   /#view-triage\.active,\s*#view-triage\.view\.active,\s*#triage-view\.active\s*\{[\s\S]*?display:\s*flex/,
   /#clusters-container\s*\{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-height:\s*0/,
+  /\.triage-toolbar\s*\{[\s\S]*?position:\s*sticky/,
+  /\.triage-toolbar\s+#cluster-search:focus\s*\{[\s\S]*?border-color:\s*var\(--accent\)/,
+  /\.mini-last-active\s*\{[\s\S]*?font-variant-numeric:\s*tabular-nums/,
+  /\.cluster-card\.no-match[\s\S]*?display:\s*none/,
 ];
 
 let passed = 0;

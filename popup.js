@@ -26,6 +26,37 @@ let lastAction = null;
 let lastTabIds = [];
 let nukedClusters = []; // track nuked cluster payloads for completion-screen undo
 let remainingTabs = 0; // tracks remaining tabs in triage view for live count update
+let tabMap = {}; // id -> {title, url, favIconUrl, lastAccessed} — built once per render
+
+function relativeTime(ts) {
+  if (!ts) return '';
+  const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (sec < 60) return 'just now';
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  if (sec < 604800) return `${Math.floor(sec / 86400)}d ago`;
+  try {
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch { return ''; }
+}
+
+async function buildTabMap(tabIds) {
+  const map = {};
+  if (!Array.isArray(tabIds) || !tabIds.length) return map;
+  const results = await Promise.allSettled(tabIds.map(id => chrome.tabs.get(id)));
+  results.forEach(r => {
+    if (r.status === 'fulfilled' && r.value) {
+      const t = r.value;
+      map[t.id] = {
+        title: t.title,
+        url: t.url,
+        favIconUrl: t.favIconUrl,
+        lastAccessed: t.lastAccessed
+      };
+    }
+  });
+  return map;
+}
 
 // Loading messages (escalating per task spec)
 const LOADING_MESSAGES = [
@@ -167,7 +198,7 @@ async function runClusterFlow() {
   });
   if (!tabResp?.ok) throw new Error(tabResp?.error || 'Failed to get tabs');
   if (tabResp.cached) {
-    renderClusters(tabResp.payload);
+    await renderClusters(tabResp.payload);
     return;
   }
   // 2. Load merged settings (sync + local)
@@ -203,7 +234,7 @@ async function runClusterFlow() {
     );
   });
   // 5. Render
-  renderClusters({ type: 'clusters', clusters });
+  await renderClusters({ type: 'clusters', clusters });
 }
 
 function handleClusterError(err) {
@@ -297,23 +328,19 @@ function renderClusterCard(cluster) {
 
   if (favContainer && cluster.tabIds?.length) {
     const total = cluster.tabIds.length;
-    const ids = cluster.tabIds.slice(0, 5);
-    ids.forEach((id, i) => {
-      chrome.tabs.get(id).then(tab => {
-        if (tab?.favIconUrl) {
-          const img = document.createElement('img');
-          img.src = tab.favIconUrl;
-          img.className = 'favicon';
-          img.style.left = `${i * 14}px`;
-          img.style.zIndex = String(10 - i);
-          img.style.background = 'transparent';
-          // Hide broken favicons to avoid ugly placeholders
-          img.onerror = () => { img.style.display = 'none'; };
-          favContainer.appendChild(img);
-        }
-      }).catch(() => {});
+    cluster.tabIds.slice(0, 5).forEach((id, i) => {
+      const tab = tabMap[id];
+      if (tab?.favIconUrl) {
+        const img = document.createElement('img');
+        img.src = tab.favIconUrl;
+        img.className = 'favicon';
+        img.style.left = `${i * 14}px`;
+        img.style.zIndex = String(10 - i);
+        img.style.background = 'transparent';
+        img.onerror = () => { img.style.display = 'none'; };
+        favContainer.appendChild(img);
+      }
     });
-    // +X badge if more than 5 tabs
     if (total > 5) {
       const badge = document.createElement('span');
       badge.className = 'favicon-badge';
@@ -324,6 +351,39 @@ function renderClusterCard(cluster) {
     }
   }
 
+  // Aggregated search text — used by the toolbar filter even when the card is collapsed.
+  div.dataset.searchText = (cluster.tabIds || [])
+    .map(id => `${tabMap[id]?.title || ''} ${tabMap[id]?.url || ''}`)
+    .join(' ')
+    .toLowerCase();
+
+  function populateMiniList() {
+    if (!miniList || miniList.hasChildNodes() || !cluster.tabIds?.length) return;
+    cluster.tabIds.forEach(id => {
+      const tab = tabMap[id];
+      if (!tab) return;
+      const item = document.createElement('label');
+      item.className = 'mini-tab';
+      item.dataset.searchText = `${tab.title || ''} ${tab.url || ''}`.toLowerCase();
+      item.innerHTML = `
+        <input type="checkbox" data-id="${id}" checked />
+        <img class="mini-fav" src="${tab.favIconUrl || ''}" alt="" onerror="this.style.display='none'"/>
+        <span class="mini-title">${tab.title || tab.url || 'Tab'}</span>
+        <span class="mini-last-active" title="Last active">${relativeTime(tab.lastAccessed)}</span>
+      `;
+      const cb = item.querySelector('input');
+      cb.addEventListener('change', () => {
+        if (cb.checked) selectedIds.add(id);
+        else selectedIds.delete(id);
+        div.dataset.selectedIds = JSON.stringify([...selectedIds]);
+      });
+      miniList.appendChild(item);
+    });
+  }
+
+  // Expose so the search filter can force-populate when expanding programmatically.
+  div._populateMiniList = populateMiniList;
+
   // Expand/collapse toggle
   const expandToggle = div.querySelector('.expand-toggle');
   if (expandToggle) {
@@ -331,36 +391,10 @@ function renderClusterCard(cluster) {
       e.stopPropagation();
       const expanded = div.classList.toggle('expanded');
       expandToggle.textContent = expanded ? '▴' : '▾';
-      if (miniList) {
-        if (expanded) {
-          if (!miniList.hasChildNodes() && cluster.tabIds?.length) {
-            // Populate mini-list with checkboxes
-            cluster.tabIds.forEach(id => {
-              chrome.tabs.get(id).then(tab => {
-                const item = document.createElement('label');
-                item.className = 'mini-tab';
-                item.innerHTML = `
-                  <input type="checkbox" data-id="${id}" checked />
-                  <img class="mini-fav" src="${tab.favIconUrl || ''}" alt="" onerror="this.style.display='none'"/>
-                  <span class="mini-title">${tab.title || tab.url || 'Tab'}</span>
-                `;
-                const cb = item.querySelector('input');
-                cb.addEventListener('change', () => {
-                  if (cb.checked) selectedIds.add(id);
-                  else selectedIds.delete(id);
-                  div.dataset.selectedIds = JSON.stringify([...selectedIds]);
-                });
-                miniList.appendChild(item);
-              }).catch(() => {});
-            });
-          }
-        }
-        // Visibility is controlled by CSS .expanded class + max-height
-      }
+      if (expanded) populateMiniList();
     });
   }
 
-  // Store selectedIds on div for action handlers
   div.dataset.selectedIds = JSON.stringify([...selectedIds]);
 
   return div;
@@ -584,7 +618,7 @@ function updateStats(action, tabCount) {
   else if (action === 'nuke') stats.nuked += n;
 }
 
-function renderClusters(data) {
+async function renderClusters(data) {
   if (loadingInterval) {
     clearInterval(loadingInterval);
     loadingInterval = null;
@@ -593,7 +627,6 @@ function renderClusters(data) {
   const progEl = document.getElementById('progress-fill');
   if (progEl) progEl.style.width = '100%';
   let clusterList = data.clusters || [];
-  // 0 clusters → fallback to single "Uncategorized" cluster
   if (clusterList.length === 0) {
     clusterList = [{
       name: 'Uncategorized',
@@ -606,25 +639,59 @@ function renderClusters(data) {
   clusters = clusterList;
   totalClusters = clusters.length;
   resolvedClusters = 0;
-  // Create native Chrome tab groups from cluster data
   createTabGroups(clusterList).catch(err => console.warn('[popup] tab grouping failed:', err));
   const container = document.getElementById('clusters-container');
   if (!container) return;
   container.innerHTML = '';
   if (clusters.length === 1 && (clusters[0].tabIds || []).length === 0) {
-    // 0 tabs filtered case
     container.innerHTML = '<p class="empty" role="status" aria-live="polite">Nothing to bankrupt — you\'re already clean!</p>';
     setState(STATES.COMPLETION);
     return;
   }
+  // Build a tabId -> {title, url, favIconUrl, lastAccessed} map once so cards render
+  // synchronously and the search filter can match collapsed cards without re-querying tabs.
+  const allIds = clusters.flatMap(c => c.tabIds || []);
+  tabMap = await buildTabMap(allIds);
   clusters.forEach(c => container.appendChild(renderClusterCard(c)));
   const total = clusters.reduce((sum, c) => sum + (c.tabIds || []).length, 0);
   remainingTabs = total;
   const badge = document.getElementById('triage-tab-count');
   if (badge) badge.textContent = `${total} tabs`;
-  // Setup keyboard navigation for cluster cards
+  // Reset search input from any prior session
+  const search = document.getElementById('cluster-search');
+  if (search) {
+    search.value = '';
+    applyClusterFilter('');
+  }
   setupKeyboardNav(container);
   setState(STATES.TRIAGE);
+}
+
+function applyClusterFilter(query) {
+  const q = (query || '').trim().toLowerCase();
+  const cards = document.querySelectorAll('#clusters-container .cluster-card');
+  cards.forEach(card => {
+    if (!q) {
+      card.classList.remove('no-match');
+      card.querySelectorAll('.mini-tab.no-match').forEach(row => row.classList.remove('no-match'));
+      return;
+    }
+    const text = card.dataset.searchText || '';
+    const matches = text.includes(q);
+    card.classList.toggle('no-match', !matches);
+    if (!matches) return;
+    // Force-expand matching cards so users see what hit, and populate mini-list synchronously.
+    if (typeof card._populateMiniList === 'function') card._populateMiniList();
+    if (!card.classList.contains('expanded')) {
+      card.classList.add('expanded');
+      const toggle = card.querySelector('.expand-toggle');
+      if (toggle) toggle.textContent = '▴';
+    }
+    card.querySelectorAll('.mini-tab').forEach(row => {
+      const t = row.dataset.searchText || '';
+      row.classList.toggle('no-match', !t.includes(q));
+    });
+  });
 }
 
 // Create native Chrome tab groups for each cluster.
@@ -919,6 +986,45 @@ async function init() {
 
   // Listen for background messages
   chrome.runtime.onMessage.addListener(handleMessage);
+
+  // Search input — filters cluster cards + their mini-tab rows by title/URL substring.
+  const searchInput = document.getElementById('cluster-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => applyClusterFilter(e.target.value));
+    // Esc clears the filter and blurs.
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        applyClusterFilter('');
+        searchInput.blur();
+      }
+    });
+  }
+
+  // Global shortcuts: `/` focuses search, `U` triggers the most recent undo toast.
+  // K/S/N are wired in setupKeyboardNav (per-card, so they can act on the focused cluster).
+  document.addEventListener('keydown', (e) => {
+    const tag = e.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || e.target?.isContentEditable) return;
+    if (e.key === '/') {
+      const s = document.getElementById('cluster-search');
+      if (s) {
+        e.preventDefault();
+        s.focus();
+        s.select?.();
+      }
+    } else if (e.key === 'u' || e.key === 'U') {
+      e.preventDefault();
+      triggerLastUndo();
+    }
+  });
+}
+
+function triggerLastUndo() {
+  const toast = document.getElementById('undo-toast');
+  const link = document.getElementById('undo-link');
+  if (!toast || !link || toast.classList.contains('hidden')) return;
+  link.click();
 }
 
 document.addEventListener('DOMContentLoaded', init);
